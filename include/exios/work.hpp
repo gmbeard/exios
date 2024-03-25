@@ -22,7 +22,7 @@ private:
 template <typename F>
 auto wrap_work(F&& f, Context const& ctx)
 {
-    return [work = Work(ctx), f = std::move(f)](auto&&... args) {
+    return [work = Work(ctx), f = std::move(f)](auto&&... args) mutable {
         return f(std::forward<decltype(args)>(args)...);
     };
 }

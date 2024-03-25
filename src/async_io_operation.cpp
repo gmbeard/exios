@@ -15,11 +15,6 @@ auto AsyncIoOperation::get_context() noexcept -> Context& { return ctx_; }
 
 auto AsyncIoOperation::get_fd() const noexcept -> int { return fd_; }
 
-auto AsyncIoOperation::set_result(IoResult val) noexcept -> void
-{
-    result_ = std::move(val);
-}
-
 auto AsyncIoOperation::is_read_operation() const noexcept -> bool
 {
     return is_read_;

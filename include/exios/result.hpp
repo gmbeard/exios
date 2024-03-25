@@ -24,6 +24,12 @@ struct VoidResult
     }
 };
 
+template <typename T>
+struct ResultValue
+{
+    T value;
+};
+
 template <typename E, typename R = VoidResult>
 requires(!std::is_same_v<E, R>)
 struct ResultStorage
@@ -42,10 +48,18 @@ struct ResultStorage
     }
 
     template <typename U>
-    ResultStorage(U&& val)
+    ResultStorage(ResultValue<U>&& val)
     requires(std::is_convertible_v<U, ErrorType> ||
              std::is_convertible_v<U, ResultType>)
-        : storage_ { std::forward<U>(val) }
+        : storage_ { std::move(val.value) }
+    {
+    }
+
+    template <typename U>
+    ResultStorage(ResultValue<U> const& val)
+    requires(std::is_convertible_v<U, ErrorType> ||
+             std::is_convertible_v<U, ResultType>)
+        : storage_ { val.value }
     {
     }
 
@@ -153,13 +167,13 @@ using Result = typename detail::ResultTraits<Ts...>::type;
 template <typename R>
 [[nodiscard]] auto result_ok(R&& val) noexcept
 {
-    return std::forward<R>(val);
+    return detail::ResultValue { std::forward<R>(val) };
 }
 
 template <typename E>
 [[nodiscard]] auto result_error(E&& val) noexcept
 {
-    return std::forward<E>(val);
+    return detail::ResultValue { std::forward<E>(val) };
 }
 
 template <typename E, typename R>
