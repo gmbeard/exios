@@ -40,7 +40,7 @@ auto should_invoke_async_io_operation() -> void
             exios::ConstBufferView {});
         EXIOS_SCOPE_GUARD([&] { dispatch(std::move(*op)); });
 
-        op->set_result(0ull);
+        static_cast<void>(op->perform_io());
 
         EXPECT(!invoked);
     }

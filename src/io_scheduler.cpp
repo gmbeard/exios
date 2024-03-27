@@ -114,24 +114,18 @@ auto IoScheduler::poll_once() -> void
                 continue;
             }
 
-            auto io_result = next->perform_io();
-
-            /* An EAGAIN / EWOULDBLOCK means we have to leave the
+            /* A return value of `false` means the I/O operation
+             * resulted in EAGAIN / EWOULDBLOCK, and we have to leave the
              * operation in the list. This may sound unecessary, but
              * we're allowing multiple operations to be queued for the
              * same FD, so only one IO operation per FD is guaranteed
              * to succeed without blocking...
              */
-            if (io_result.is_error_value() &&
-                (io_result.error() == std::errc::operation_would_block ||
-                 io_result.error() ==
-                     std::errc::resource_unavailable_try_again)) {
+            if (!next->perform_io()) {
                 pending = true;
                 next++;
                 continue;
             }
-
-            next->set_result(io_result);
 
             /* WARNING: The order of these operations is crucial; We must
              * erase the item from `operations_` _BEFORE_ posting to the
