@@ -18,17 +18,21 @@ struct AsyncIoOperation : AnyAsyncOperation
     AsyncIoOperation(Context ctx, int fd, bool is_read_operation) noexcept;
 
     [[nodiscard]] virtual auto perform_io() noexcept -> bool = 0;
+    auto cancel() noexcept -> void;
+    [[nodiscard]] auto cancelled() const noexcept -> bool;
     [[nodiscard]] auto get_context() noexcept -> Context&;
     [[nodiscard]] auto get_fd() const noexcept -> int;
     [[nodiscard]] auto is_read_operation() const noexcept -> bool;
 
 protected:
+    virtual auto do_cancel() noexcept -> void = 0;
     std::optional<Result<ResultType, ErrorType>> result_;
 
 private:
     Context ctx_;
     int fd_;
     bool is_read_;
+    bool is_cancelled_;
 };
 
 template <typename OperationTag, typename F, typename Alloc>
@@ -50,6 +54,8 @@ struct AsyncIoOperationImpl : AsyncIoOperation
     {
         return operation_.io(get_fd());
     }
+
+    auto do_cancel() noexcept -> void override { operation_.cancel(); }
 
     auto discard() noexcept -> void override
     {

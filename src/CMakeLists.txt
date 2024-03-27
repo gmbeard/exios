@@ -6,8 +6,10 @@ add_library(
     context.cpp
     context_thread.cpp
     contracts.cpp
+    event.cpp
     file_descriptor.cpp
     io.cpp
+    io_object.cpp
     io_scheduler.cpp
     result.cpp
     timer.cpp

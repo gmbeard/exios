@@ -4,6 +4,11 @@
 
 namespace exios
 {
+FileDescriptor::FileDescriptor() noexcept
+    : fd_ { kInvalidDescriptor }
+{
+}
+
 FileDescriptor::FileDescriptor(int fd) noexcept
     : fd_ { fd }
 {
@@ -34,6 +39,7 @@ auto FileDescriptor::operator=(FileDescriptor&& other) noexcept
     return *this;
 }
 
+auto FileDescriptor::value() noexcept -> int& { return fd_; }
 auto FileDescriptor::value() const noexcept -> int const& { return fd_; }
 
 } // namespace exios

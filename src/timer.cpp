@@ -14,12 +14,14 @@ namespace exios
 {
 
 Timer::Timer(Context const& ctx)
-    : ctx_ { ctx }
-    , fd_ { ::timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK | TFD_CLOEXEC) }
+    : IoObject { ctx,
+                 ::timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK | TFD_CLOEXEC) }
 {
     if (fd_.value() < 0)
         throw std::system_error { errno, std::system_category() };
 }
+
+auto Timer::cancel() -> void { ctx_.io_scheduler().cancel(fd_.value()); }
 
 auto Timer::expire() -> void
 {
@@ -39,11 +41,6 @@ auto convert_to_itimerspec(std::chrono::nanoseconds const& val) -> itimerspec
     retval.it_value.tv_nsec = val.count() % kNanosecondsPerSecond;
 
     return retval;
-}
-
-auto Timer::schedule_io(AsyncIoOperation* op) noexcept -> void
-{
-    ctx_.io_scheduler().schedule(op);
 }
 
 } // namespace exios

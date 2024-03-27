@@ -7,6 +7,8 @@
 #include "./buffer_view.hpp"
 #include "./context.hpp"
 #include "./context_thread.hpp"
+#include "./event.hpp"
+#include "./file_descriptor.hpp"
 #include "./intrusive_list.hpp"
 #include "./io.hpp"
 #include "./result.hpp"

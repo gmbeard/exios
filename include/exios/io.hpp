@@ -17,20 +17,26 @@ struct ReadOperation
 {
 };
 
-struct TimerExpiryOperation
+struct TimerExpiryOrEventOperation
+{
+};
+
+struct EventWriteOperation
 {
 };
 
 constexpr WriteOperation write_operation {};
 constexpr ReadOperation read_operation {};
-constexpr TimerExpiryOperation timer_expiry_operation {};
+constexpr TimerExpiryOrEventOperation timer_expiry_operation {};
+constexpr TimerExpiryOrEventOperation event_read_operation {};
+constexpr EventWriteOperation event_write_operation {};
 
 using IoResult = Result<std::size_t, std::error_code>;
-using TimerIoResult = Result<std::uint64_t, std::error_code>;
+using TimerOrEventIoResult = Result<std::uint64_t, std::error_code>;
 
 auto perform_read(int fd, BufferView buffer) noexcept -> IoResult;
 auto perform_write(int fd, ConstBufferView buffer) noexcept -> IoResult;
-auto perform_timer_read(int fd) noexcept -> TimerIoResult;
+auto perform_timer_or_event_read(int fd) noexcept -> TimerOrEventIoResult;
 
 struct IoOpBase
 {
@@ -40,6 +46,8 @@ struct IoOpBase
         EXIOS_EXPECT(result_);
         std::forward<F>(f)(std::move(*result_));
     }
+
+    auto cancel() noexcept -> void;
 
 protected:
     auto set_result(IoResult&& r) noexcept -> void;
@@ -70,9 +78,10 @@ private:
     ConstBufferView buffer_;
 };
 
-struct TimerExpiry
+struct TimerExpiryOrEvent
 {
     auto io(int fd) noexcept -> bool;
+    auto cancel() noexcept -> void;
 
     static constexpr auto is_readable = std::true_type {};
 
@@ -84,7 +93,25 @@ struct TimerExpiry
     }
 
 private:
-    std::optional<TimerIoResult> result_;
+    std::optional<TimerOrEventIoResult> result_;
+};
+
+struct EventWrite
+{
+    auto io(int fd) noexcept -> bool;
+    auto cancel() noexcept -> void;
+
+    static constexpr auto is_readable = std::false_type {};
+
+    template <typename F>
+    auto dispatch(F&& f) -> void
+    {
+        EXIOS_EXPECT(result_);
+        std::forward<F>(f)(std::move(*result_));
+    }
+
+private:
+    std::optional<IoResult> result_;
 };
 
 template <typename Tag>
@@ -103,9 +130,15 @@ struct IoOperation<WriteOperation>
 };
 
 template <>
-struct IoOperation<TimerExpiryOperation>
+struct IoOperation<TimerExpiryOrEventOperation>
 {
-    using type = TimerExpiry;
+    using type = TimerExpiryOrEvent;
+};
+
+template <>
+struct IoOperation<EventWriteOperation>
+{
+    using type = EventWrite;
 };
 
 template <typename Tag>
