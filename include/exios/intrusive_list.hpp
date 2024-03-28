@@ -247,19 +247,24 @@ struct IntrusiveList
         sentinel_.next->prev = &sentinel_;
     }
 
-    [[nodiscard]] auto insert(T* item, iterator before) -> iterator
+    [[nodiscard]] auto insert(T* item, iterator before) noexcept -> iterator
     {
+        EXIOS_EXPECT(item);
+
         auto* before_item = before.current;
         before_item->prev->next = item;
+        // cppcheck-suppress [nullPointerRedundantCheck]
         item->prev = before_item->prev;
+        // cppcheck-suppress [nullPointerRedundantCheck]
         item->next = before_item;
         before_item->prev = item;
         return before;
     }
 
-    auto
-    splice(iterator before, IntrusiveList& other, iterator first, iterator last)
-        -> void
+    [[nodiscard]] auto splice(iterator before,
+                              IntrusiveList& other,
+                              iterator first,
+                              iterator last) noexcept -> iterator
     {
         auto it = first;
         while (it != last) {
@@ -267,11 +272,20 @@ struct IntrusiveList
             it = other.erase(it);
             before = insert(val, before);
         }
+
+        return first;
     }
 
-    auto splice(iterator before, IntrusiveList& other) -> void
+    [[nodiscard]] auto
+    splice(iterator before, iterator first, iterator last) noexcept -> iterator
     {
-        splice(before, other, other.begin(), other.end());
+        return splice(before, *this, first, last);
+    }
+
+    [[nodiscard]] auto splice(iterator before, IntrusiveList& other) noexcept
+        -> iterator
+    {
+        return splice(before, other, other.begin(), other.end());
     }
 
     [[nodiscard]] auto begin() noexcept -> iterator
@@ -304,7 +318,7 @@ auto drain_list(exios::IntrusiveList<T>& list,
     while (p != list.end()) {
         auto item = &*p;
         p = list.erase(p);
-        op(*item);
+        op(std::move(*item));
     }
 }
 

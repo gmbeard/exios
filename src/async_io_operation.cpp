@@ -8,7 +8,19 @@ AsyncIoOperation::AsyncIoOperation(Context ctx,
     : ctx_ { ctx }
     , fd_ { fd }
     , is_read_ { is_read_operation }
+    , is_cancelled_ { false }
 {
+}
+
+auto AsyncIoOperation::cancelled() const noexcept -> bool
+{
+    return is_cancelled_;
+}
+
+auto AsyncIoOperation::cancel() noexcept -> void
+{
+    do_cancel();
+    is_cancelled_ = true;
 }
 
 auto AsyncIoOperation::get_context() noexcept -> Context& { return ctx_; }

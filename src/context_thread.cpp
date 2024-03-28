@@ -16,7 +16,7 @@ ContextThread::ContextThread()
 
 ContextThread::~ContextThread()
 {
-    drain_list(completion_queue_, [&](auto& item) noexcept {
+    drain_list(completion_queue_, [&](auto&& item) noexcept {
         /* Ignore the poll sentinel. This will be cleaned up automatically
          */
         if (std::addressof(item) != poll_sentinel_.get()) {
@@ -49,7 +49,7 @@ auto ContextThread::run_once() -> std::size_t
 
     {
         std::lock_guard lock { data_mutex_ };
-        tmp.splice(tmp.end(), completion_queue_);
+        static_cast<void>(tmp.splice(tmp.end(), completion_queue_));
     }
 
     EXIOS_SCOPE_GUARD([&] {
@@ -63,15 +63,16 @@ auto ContextThread::run_once() -> std::size_t
              * unprocessed completions back onto the queue...
              */
             std::lock_guard lock { data_mutex_ };
-            completion_queue_.splice(completion_queue_.begin(), tmp);
+            static_cast<void>(
+                completion_queue_.splice(completion_queue_.begin(), tmp));
         }
     });
 
     std::size_t num_processed = 0;
 
-    drain_list(tmp, [&](auto& item) {
+    drain_list(tmp, [&](auto&& item) {
         if (std::addressof(item) == poll_sentinel_.get()) {
-            io_scheduler_.poll_once();
+            static_cast<void>(io_scheduler_.poll_once());
         }
         else {
             dispatch(std::move(item));

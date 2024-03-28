@@ -24,3 +24,15 @@ make_test(
     SOURCES alloc_utils_tests.cpp
     SIMPLE
 )
+
+make_test(
+    NAME event_tests
+    SOURCES event_tests.cpp
+    SIMPLE
+)
+
+make_test(
+    NAME cancellation_tests
+    SOURCES cancellation_tests.cpp
+    SIMPLE
+)

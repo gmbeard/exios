@@ -23,7 +23,7 @@ auto perform_write(int fd, ConstBufferView buf) noexcept -> IoResult
     return result_ok(static_cast<std::size_t>(result));
 }
 
-auto perform_timer_read(int fd) noexcept -> TimerIoResult
+auto perform_timer_or_event_read(int fd) noexcept -> TimerOrEventIoResult
 {
     std::uint64_t val;
     auto const result = ::read(fd, &val, sizeof(val));
@@ -31,6 +31,12 @@ auto perform_timer_read(int fd) noexcept -> TimerIoResult
         return result_error(std::error_code { errno, std::system_category() });
 
     return result_ok(val);
+}
+
+auto IoOpBase::cancel() noexcept -> void
+{
+    result_.emplace(
+        result_error(std::make_error_code(std::errc::operation_canceled)));
 }
 
 auto IoOpBase::set_result(IoResult&& r) noexcept -> void
@@ -69,15 +75,42 @@ auto IoWrite::io(int fd) noexcept -> bool
     return true;
 }
 
-auto TimerExpiry::io(int fd) noexcept -> bool
+auto TimerExpiryOrEvent::io(int fd) noexcept -> bool
 {
     EXIOS_EXPECT(!result_);
-    auto r = perform_timer_read(fd);
-    if (r.is_error_value() && r.error() == std::errc::operation_would_block)
+    auto r = perform_timer_or_event_read(fd);
+    if (r.is_error_value() && (r.error() == std::errc::operation_would_block ||
+                               r.error() == std::errc::operation_in_progress))
         return false;
 
     result_.emplace(r);
     return true;
+}
+
+auto TimerExpiryOrEvent::cancel() noexcept -> void
+{
+    result_.emplace(
+        result_error(std::make_error_code(std::errc::operation_canceled)));
+}
+
+auto EventWrite::io(int fd) noexcept -> bool
+{
+    EXIOS_EXPECT(!result_);
+    std::uint64_t val = 1;
+    ConstBufferView buffer { .data = &val, .size = sizeof(val) };
+    auto r = perform_write(fd, buffer);
+    if (r.is_error_value() && (r.error() == std::errc::operation_would_block ||
+                               r.error() == std::errc::operation_in_progress))
+        return false;
+
+    result_.emplace(r);
+    return true;
+}
+
+auto EventWrite::cancel() noexcept -> void
+{
+    result_.emplace(
+        result_error(std::make_error_code(std::errc::operation_canceled)));
 }
 
 } // namespace exios

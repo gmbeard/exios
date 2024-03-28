@@ -3,6 +3,7 @@
 
 #include "exios/async_io_operation.hpp"
 #include "exios/intrusive_list.hpp"
+#include <cstddef>
 #include <sys/epoll.h>
 #include <vector>
 
@@ -18,12 +19,14 @@ struct IoScheduler
     auto operator=(IoScheduler const&) -> IoScheduler& = delete;
 
     auto schedule(AsyncIoOperation* op) noexcept -> void;
-    auto poll_once() -> void;
+    auto cancel(int fd) noexcept -> void;
+    [[nodiscard]] auto poll_once() -> std::size_t;
 
 private:
     int epoll_fd_;
     IntrusiveList<AsyncIoOperation> operations_;
     std::vector<epoll_event> event_buffer_;
+    IntrusiveList<AsyncIoOperation>::iterator begin_cancelled_;
 };
 
 } // namespace exios
