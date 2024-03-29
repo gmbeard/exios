@@ -243,8 +243,8 @@ auto IoScheduler::poll_once() -> std::size_t
     if (0 == register_events(epoll_fd_, operations_.begin(), begin_cancelled_))
         return 0;
 
-    auto const r =
-        ::epoll_wait(epoll_fd_, event_buffer_.data(), event_buffer_.size(), -1);
+    auto const r = ::epoll_pwait(
+        epoll_fd_, event_buffer_.data(), event_buffer_.size(), -1, nullptr);
 
     if (r < 0)
         throw std::system_error { errno, std::system_category() };

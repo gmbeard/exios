@@ -10,10 +10,13 @@ function(make_test)
         ${ARGN}
     )
 
-    message(STATUS "Enable match: ${${MAKE_TEST_ENABLE_MATCH}}")
-    if((MAKE_TEST_SIMPLE) AND (NOT ${MAKE_TEST_ENABLE_MATCH} OR ${MAKE_TEST_ENABLE_MATCH} STREQUAL "SIMPLE"))
+    if(MAKE_TEST_FULL AND "${MAKE_TEST_ENABLE_MATCH}" STREQUAL "")
+        message(FATAL_ERROR "\"FULL\" tests require the \"ENABLE_MATCH\" argument")
+    endif()
+
+    if(MAKE_TEST_SIMPLE)
         set(TEST_ENABLED ON)
-    elseif(MAKE_TEST_FULL AND ${MAKE_TEST_ENABLE_MATCH} STREQUAL "FULL")
+    elseif(MAKE_TEST_FULL AND "${${MAKE_TEST_ENABLE_MATCH}}" STREQUAL "FULL")
         set(TEST_ENABLED ON)
     endif()
 

@@ -6,6 +6,7 @@
 #include "exios/result.hpp"
 #include <cinttypes>
 #include <optional>
+#include <sys/signalfd.h>
 #include <system_error>
 
 namespace exios
@@ -25,14 +26,20 @@ struct EventWriteOperation
 {
 };
 
+struct SignalReadOperation
+{
+};
+
 constexpr WriteOperation write_operation {};
 constexpr ReadOperation read_operation {};
 constexpr TimerExpiryOrEventOperation timer_expiry_operation {};
 constexpr TimerExpiryOrEventOperation event_read_operation {};
 constexpr EventWriteOperation event_write_operation {};
+constexpr SignalReadOperation signal_read_operation {};
 
 using IoResult = Result<std::size_t, std::error_code>;
 using TimerOrEventIoResult = Result<std::uint64_t, std::error_code>;
+using SignalResult = Result<signalfd_siginfo, std::error_code>;
 
 auto perform_read(int fd, BufferView buffer) noexcept -> IoResult;
 auto perform_write(int fd, ConstBufferView buffer) noexcept -> IoResult;
@@ -114,6 +121,24 @@ private:
     std::optional<IoResult> result_;
 };
 
+struct SignalRead
+{
+    auto io(int fd) noexcept -> bool;
+    auto cancel() noexcept -> void;
+
+    static constexpr auto is_readable = std::true_type {};
+
+    template <typename F>
+    auto dispatch(F&& f) -> void
+    {
+        EXIOS_EXPECT(result_);
+        std::forward<F>(f)(std::move(*result_));
+    }
+
+private:
+    std::optional<SignalResult> result_;
+};
+
 template <typename Tag>
 struct IoOperation;
 
@@ -139,6 +164,12 @@ template <>
 struct IoOperation<EventWriteOperation>
 {
     using type = EventWrite;
+};
+
+template <>
+struct IoOperation<SignalReadOperation>
+{
+    using type = SignalRead;
 };
 
 template <typename Tag>
