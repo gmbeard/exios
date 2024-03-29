@@ -12,6 +12,7 @@ add_library(
     io_object.cpp
     io_scheduler.cpp
     result.cpp
+    signal.cpp
     timer.cpp
     work.cpp
 )

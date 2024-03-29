@@ -13,6 +13,7 @@
 #include "./io.hpp"
 #include "./result.hpp"
 #include "./scope_guard.hpp"
+#include "./signal.hpp"
 #include "./timer.hpp"
 #include "./work.hpp"
 

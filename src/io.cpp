@@ -1,6 +1,8 @@
 #include "exios/io.hpp"
+#include "exios/result.hpp"
 #include <cstddef>
 #include <errno.h>
+#include <sys/signalfd.h>
 #include <unistd.h>
 
 namespace exios
@@ -108,6 +110,26 @@ auto EventWrite::io(int fd) noexcept -> bool
 }
 
 auto EventWrite::cancel() noexcept -> void
+{
+    result_.emplace(
+        result_error(std::make_error_code(std::errc::operation_canceled)));
+}
+
+auto SignalRead::io(int fd) noexcept -> bool
+{
+    EXIOS_EXPECT(!result_);
+    signalfd_siginfo val;
+    ConstBufferView buffer { .data = &val, .size = sizeof(val) };
+    auto r = perform_write(fd, buffer);
+    if (r.is_error_value() && (r.error() == std::errc::operation_would_block ||
+                               r.error() == std::errc::operation_in_progress))
+        return false;
+
+    result_.emplace(result_ok(val));
+    return true;
+}
+
+auto SignalRead::cancel() noexcept -> void
 {
     result_.emplace(
         result_error(std::make_error_code(std::errc::operation_canceled)));
