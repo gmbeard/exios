@@ -10,6 +10,33 @@
 namespace exios
 {
 
+/*!
+ * An *I/O* object for triggering, and waiting on, events.
+ *
+ * Each triggered event will be consumed by, at most, one waiting consumer.
+ *
+ * ### Example
+ *
+ * ```cpp
+ * exios::ContextThread thread;
+ * exios::Event my_event { thread };
+ *
+ * my_event.wait_for_event([](exios::TimerOrEventIoResult result) {
+ *   if (!result) {
+ *     if (result.error() == std::errc::operation_canceled)
+ *       return;
+ *
+ *     throw std::system_error { result.error() };
+ *   }
+ *
+ *   std::cout << "Event received!\n";
+ * });
+ *
+ * ...
+ *
+ * auto const num_completed = thread.run();
+ * ```
+ */
 struct Event : IoObject
 {
     Event(Context const& ctx);
