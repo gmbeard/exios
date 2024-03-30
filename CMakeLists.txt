@@ -20,6 +20,15 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/cmake)
 include(CPPCheck)
 include(GNUInstallDirs)
 include(CheckIPOSupported)
+find_package(Doxygen)
+if(DOXYGEN_FOUND)
+    doxygen_add_docs(
+        docs
+        "${PROJECT_SOURCE_DIR}/include/exios/*.hpp"
+        CONFIG_FILE "${PROJECT_SOURCE_DIR}/Doxyfile"
+    )
+endif()
+
 check_ipo_supported(
     RESULT EXIOS_IPO_SUPPORTED
     OUTPUT EXIOS_IPO_SUPORTED_OUTPUT
