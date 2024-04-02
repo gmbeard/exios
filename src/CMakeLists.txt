@@ -11,6 +11,7 @@ add_library(
     io.cpp
     io_object.cpp
     io_scheduler.cpp
+    poll_wake_event.cpp
     result.cpp
     signal.cpp
     timer.cpp

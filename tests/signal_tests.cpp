@@ -174,7 +174,7 @@ auto should_handle_sigint() -> void
         /* We need to give the child process chance to
          * set up its event loop...
          */
-        sleep_for(std::chrono::milliseconds(200));
+        sleep_for(std::chrono::milliseconds(50));
 
         EXPECT(::kill(pid, SIGINT) >= 0);
 

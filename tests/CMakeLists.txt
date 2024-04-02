@@ -9,12 +9,14 @@ make_test(
     NAME async_operation_tests
     SOURCES async_operation_tests.cpp
     SIMPLE
+    TIMEOUT 2
 )
 
 make_test(
     NAME timer_tests
     SOURCES timer_tests.cpp
     SIMPLE
+    TIMEOUT 2
 )
 
 make_test(
@@ -32,12 +34,14 @@ make_test(
 make_test(
     NAME event_tests
     SOURCES event_tests.cpp
+    TIMEOUT 2
     SIMPLE
 )
 
 make_test(
     NAME cancellation_tests
     SOURCES cancellation_tests.cpp
+    TIMEOUT 2
     SIMPLE
 )
 
@@ -46,4 +50,26 @@ make_test(
     SOURCES signal_tests.cpp
     FULL
     ENABLE_MATCH EXIOS_TEST_TYPE
+    TIMEOUT 2
+)
+
+make_test(
+    NAME multi_thread_tests
+    SOURCES multi_thread_tests.cpp
+    TIMEOUT 2
+    SIMPLE
+)
+
+make_test(
+    NAME intrusive_list_tests
+    SOURCES intrusive_list_tests.cpp
+    TIMEOUT 2
+    SIMPLE
+)
+
+make_test(
+    NAME context_thread_tests
+    SOURCES context_thread_tests.cpp
+    TIMEOUT 2
+    SIMPLE
 )

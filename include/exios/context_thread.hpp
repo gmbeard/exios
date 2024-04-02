@@ -1,12 +1,13 @@
 #ifndef EXIOS_CONTEXT_THREAD_HPP_INCLUDED
 #define EXIOS_CONTEXT_THREAD_HPP_INCLUDED
 
+#include "exios/alloc_utils.hpp"
 #include "exios/async_operation.hpp"
 #include "exios/intrusive_list.hpp"
 #include "exios/io_scheduler.hpp"
 #include <atomic>
+#include <condition_variable>
 #include <cstddef>
-#include <memory>
 #include <mutex>
 
 namespace exios
@@ -14,7 +15,9 @@ namespace exios
 
 struct ContextThread
 {
-    ContextThread();
+    friend struct IoScheduler;
+
+    ContextThread() noexcept;
     ~ContextThread();
     ContextThread(ContextThread const&) = delete;
     auto operator=(ContextThread const&) -> ContextThread& = delete;
@@ -29,22 +32,27 @@ struct ContextThread
     template <typename F, typename Alloc>
     auto post(F&& f, Alloc const& alloc) -> void
     {
-        post(make_async_operation(std::forward<F>(f), alloc));
+        post(make_async_operation(wrap_work(std::forward<F>(f), *this), alloc));
+    }
+
+    template <typename F>
+    auto post(F&& f) -> void
+    requires(!std::is_convertible_v<F, AnyAsyncOperation*>)
+    {
+        auto const alloc = select_allocator(f);
+        post(std::forward<F>(f), alloc);
     }
 
     auto io_scheduler() noexcept -> IoScheduler&;
 
 private:
-    struct AnyAsyncOperationDeleter
-    {
-        auto operator()(AnyAsyncOperation* ptr) noexcept -> void;
-    };
+    auto notify() noexcept -> void;
 
-    std::unique_ptr<AnyAsyncOperation, AnyAsyncOperationDeleter> poll_sentinel_;
     IoScheduler io_scheduler_;
     IntrusiveList<AnyAsyncOperation> completion_queue_;
     std::atomic_size_t remaining_count_ { 0 };
     std::mutex data_mutex_;
+    std::condition_variable cvar_;
 };
 
 } // namespace exios

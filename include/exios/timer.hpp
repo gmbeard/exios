@@ -3,7 +3,6 @@
 
 #include "exios/alloc_utils.hpp"
 #include "exios/async_io_operation.hpp"
-#include "exios/buffer_view.hpp"
 #include "exios/context.hpp"
 #include "exios/file_descriptor.hpp"
 #include "exios/io.hpp"
@@ -21,6 +20,11 @@ namespace exios
 
 auto convert_to_itimerspec(std::chrono::nanoseconds const& val) -> itimerspec;
 
+template <typename Rep, typename Period, typename F>
+auto wait_for_timer_expiry_after(Context const& ctx,
+                                 std::chrono::duration<Rep, Period> duration,
+                                 F&& completion) -> void;
+
 struct Timer : IoObject
 {
     Timer(Context const& ctx);
@@ -32,6 +36,7 @@ struct Timer : IoObject
     auto wait_for_expiry_after(std::chrono::duration<Rep, Period> duration,
                                F&& completion) -> void
     {
+        cancel();
         auto timerval = convert_to_itimerspec(
             std::chrono::duration_cast<std::chrono::nanoseconds>(duration));
 
@@ -40,16 +45,49 @@ struct Timer : IoObject
             throw std::system_error { errno, std::system_category() };
         }
 
+        queue_timer_operation(ctx_, fd_.value(), std::forward<F>(completion));
+    }
+
+    template <typename Rep, typename Period, typename F>
+    friend auto
+    wait_for_timer_expiry_after(Context const& ctx,
+                                std::chrono::duration<Rep, Period> duration,
+                                F&& completion) -> void
+    {
+        Timer t { ctx };
+        auto fd = std::move(t.fd_);
+        auto timerval = convert_to_itimerspec(
+            std::chrono::duration_cast<std::chrono::nanoseconds>(duration));
+
+        if (auto const r = timerfd_settime(fd.value(), 0, &timerval, nullptr);
+            r < 0) {
+            throw std::system_error { errno, std::system_category() };
+        }
+
+        int fd_val = fd.value();
+
+        Timer::queue_timer_operation(
+            ctx,
+            fd_val,
+            [fd = std::move(fd), f = std::move(completion)](
+                auto&& result) mutable { std::move(f)(std::move(result)); });
+    }
+
+private:
+    template <typename F>
+    static auto
+    queue_timer_operation(Context const& ctx, int fd, F&& completion) -> void
+    {
         auto const alloc = select_allocator(completion);
 
         auto* op =
             make_async_io_operation(timer_expiry_operation,
-                                    wrap_work(std::move(completion), ctx_),
+                                    wrap_work(std::move(completion), ctx),
                                     alloc,
-                                    ctx_,
-                                    fd_.value());
+                                    ctx,
+                                    fd);
 
-        schedule_io(op);
+        exios::schedule_io(ctx, op);
     }
 };
 

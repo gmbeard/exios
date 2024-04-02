@@ -26,6 +26,7 @@ protected:
     FileDescriptor fd_;
 };
 
+auto schedule_io(Context ctx, AsyncIoOperation* op) noexcept -> void;
 } // namespace exios
 
 #endif // EXIOS_EVENT_HPP_INCLUDED

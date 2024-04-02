@@ -7,12 +7,13 @@ namespace exios
 {
 struct Work
 {
-    Work(Context const& ctx) noexcept;
+    explicit Work(Context const& ctx) noexcept;
     Work(Work&&) noexcept;
     Work(Work const&&) noexcept = delete;
     ~Work();
 
     auto operator=(Work const&&) noexcept -> Work& = delete;
+    auto reset() noexcept -> void;
 
 private:
     Context ctx_;
