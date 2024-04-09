@@ -15,6 +15,7 @@
 #include "./scope_guard.hpp"
 #include "./signal.hpp"
 #include "./timer.hpp"
+#include "./unix_socket.hpp"
 #include "./work.hpp"
 
 #endif // EXIOS_EXIOS_HPP_INCLUDED

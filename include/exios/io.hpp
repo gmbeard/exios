@@ -7,7 +7,10 @@
 #include <cinttypes>
 #include <optional>
 #include <sys/signalfd.h>
+#include <sys/socket.h>
+#include <sys/un.h>
 #include <system_error>
+#include <tuple>
 
 namespace exios
 {
@@ -30,16 +33,39 @@ struct SignalReadOperation
 {
 };
 
+struct UnixConnectOperation
+{
+};
+
+struct UnixAcceptOperation
+{
+};
+
+struct ReceiveMessageOperation
+{
+};
+struct SendMessageOperation
+{
+};
+
 constexpr WriteOperation write_operation {};
 constexpr ReadOperation read_operation {};
 constexpr TimerExpiryOrEventOperation timer_expiry_operation {};
 constexpr TimerExpiryOrEventOperation event_read_operation {};
 constexpr EventWriteOperation event_write_operation {};
 constexpr SignalReadOperation signal_read_operation {};
+constexpr UnixConnectOperation unix_connect_operation {};
+constexpr UnixAcceptOperation unix_accept_operation {};
+constexpr SendMessageOperation send_message_operation {};
+constexpr ReceiveMessageOperation receive_message_operation {};
 
 using IoResult = Result<std::size_t, std::error_code>;
+using ConnectResult = Result<std::error_code>;
+using AcceptResult = Result<int, std::error_code>;
 using TimerOrEventIoResult = Result<std::uint64_t, std::error_code>;
 using SignalResult = Result<signalfd_siginfo, std::error_code>;
+using ReceiveMessageResult =
+    Result<std::pair<std::size_t, msghdr>, std::error_code>;
 
 auto perform_read(int fd, BufferView buffer) noexcept -> IoResult;
 auto perform_write(int fd, ConstBufferView buffer) noexcept -> IoResult;
@@ -83,6 +109,85 @@ struct IoWrite : IoOpBase
 
 private:
     ConstBufferView buffer_;
+};
+
+struct ReceiveMessage
+{
+    explicit ReceiveMessage(msghdr msg) noexcept;
+    auto io(int fd) noexcept -> bool;
+    auto cancel() noexcept -> void;
+
+    static constexpr auto is_readable = std::true_type {};
+
+    template <typename F>
+    auto dispatch(F&& f) -> void
+    {
+        EXIOS_EXPECT(result_);
+        std::forward<F>(f)(std::move(*result_));
+    }
+
+private:
+    std::optional<ReceiveMessageResult> result_;
+    msghdr msg_;
+};
+
+struct SendMessage
+{
+    explicit SendMessage(msghdr msg) noexcept;
+    auto io(int fd) noexcept -> bool;
+    auto cancel() noexcept -> void;
+
+    static constexpr auto is_readable = std::false_type {};
+
+    template <typename F>
+    auto dispatch(F&& f) -> void
+    {
+        EXIOS_EXPECT(result_);
+        std::forward<F>(f)(std::move(*result_));
+    }
+
+private:
+    std::optional<IoResult> result_;
+    msghdr msg_;
+};
+
+struct UnixConnect
+{
+    explicit UnixConnect(std::string_view name) noexcept;
+
+    auto io(int fd) noexcept -> bool;
+    auto cancel() noexcept -> void;
+
+    static constexpr auto is_readable = std::false_type {};
+
+    template <typename F>
+    auto dispatch(F&& f) -> void
+    {
+        EXIOS_EXPECT(result_);
+        std::forward<F>(f)(std::move(*result_));
+    }
+
+private:
+    std::optional<ConnectResult> result_;
+    sockaddr_un addr_;
+};
+
+struct UnixAccept
+{
+    auto io(int fd) noexcept -> bool;
+    auto cancel() noexcept -> void;
+
+    static constexpr auto is_readable = std::true_type {};
+
+    template <typename F>
+    auto dispatch(F&& f) -> void
+    {
+        EXIOS_EXPECT(result_);
+        std::forward<F>(f)(std::move(*result_));
+    }
+
+private:
+    std::optional<AcceptResult> result_;
 };
 
 struct TimerExpiryOrEvent
@@ -170,6 +275,30 @@ template <>
 struct IoOperation<SignalReadOperation>
 {
     using type = SignalRead;
+};
+
+template <>
+struct IoOperation<UnixConnectOperation>
+{
+    using type = UnixConnect;
+};
+
+template <>
+struct IoOperation<UnixAcceptOperation>
+{
+    using type = UnixAccept;
+};
+
+template <>
+struct IoOperation<SendMessageOperation>
+{
+    using type = SendMessage;
+};
+
+template <>
+struct IoOperation<ReceiveMessageOperation>
+{
+    using type = ReceiveMessage;
 };
 
 template <typename Tag>

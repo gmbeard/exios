@@ -15,6 +15,7 @@ add_library(
     result.cpp
     signal.cpp
     timer.cpp
+    unix_socket.cpp
     work.cpp
 )
 
