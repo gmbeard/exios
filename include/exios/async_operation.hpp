@@ -16,7 +16,7 @@ struct AnyAsyncOperation : ListItemBase
 {
     virtual ~AnyAsyncOperation() {}
     virtual auto dispatch() -> void = 0;
-    virtual auto discard() -> void = 0;
+    virtual auto discard() noexcept -> void = 0;
 };
 
 template <typename F, typename Alloc>
@@ -79,7 +79,7 @@ template <typename F, typename Alloc>
 }
 
 auto discard(AnyAsyncOperation&& op) noexcept -> void;
-auto dispatch(AnyAsyncOperation&& op) noexcept -> void;
+auto dispatch(AnyAsyncOperation&& op) -> void;
 
 } // namespace exios
 

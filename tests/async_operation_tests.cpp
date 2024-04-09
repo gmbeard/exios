@@ -74,7 +74,7 @@ auto should_deallocate_before_invocation() -> void
                                        exios::wrap_work(std::move(cb), thread),
                                        tracking_allocator<void>(alloc_cb),
                                        exios::Context { thread },
-                                       0,
+                                       1,
                                        exios::ConstBufferView {});
     thread.io_scheduler().schedule(op);
 

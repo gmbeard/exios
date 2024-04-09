@@ -16,4 +16,9 @@ auto IoObject::schedule_io(AsyncIoOperation* op) noexcept -> void
     ctx_.io_scheduler().schedule(op);
 }
 
+auto schedule_io(Context ctx, AsyncIoOperation* op) noexcept -> void
+{
+    ctx.io_scheduler().schedule(op);
+}
+
 } // namespace exios

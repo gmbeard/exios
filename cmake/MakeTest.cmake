@@ -1,6 +1,6 @@
 function(make_test)
     set(options FULL SIMPLE)
-    set(single_value_args NAME ENABLE_MATCH)
+    set(single_value_args NAME ENABLE_MATCH TIMEOUT)
     set(multi_value_args SOURCES ENV_VARS)
     cmake_parse_arguments(
         MAKE_TEST
@@ -30,5 +30,15 @@ function(make_test)
         ${MAKE_TEST_NAME}
         PROPERTIES
             ENVIRONMENT "${MAKE_TEST_ENV_VARS}"
+    )
+
+    if("${MAKE_TEST_TIMEOUT}" STREQUAL "")
+        set(MAKE_TEST_TIMEOUT 2)
+    endif()
+
+    set_tests_properties(
+        ${MAKE_TEST_NAME}
+        PROPERTIES
+            TIMEOUT ${MAKE_TEST_TIMEOUT}
     )
 endfunction()

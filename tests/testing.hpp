@@ -11,13 +11,13 @@
 #define EXPECT(cond)                                                           \
     do {                                                                       \
         if (!(cond))                                                           \
-            throw ::testing::TestFailure("Expectation not met: " STRINGIFY(cond) "\n  in " __FILE__ ":" STRINGIFY(__LINE__));             \
+            throw ::testing::TestFailure("Expectation not met: " STRINGIFY((cond)) "\n  in " __FILE__ ":" STRINGIFY(__LINE__));            \
     }                                                                          \
     while (0)
 #define EXPECT_THROWS(expr)                                                    \
     try {                                                                      \
         static_cast<void>(expr);                                               \
-        throw ::testing::TestFailure("Expectation not met: " STRINGIFY(expr) " should throw\n in " __FILE__ ":" STRINGIFY(__LINE__));     \
+        throw ::testing::TestFailure("Expectation not met: " STRINGIFY((expr)) " should throw\n in " __FILE__ ":" STRINGIFY(__LINE__));    \
     }                                                                          \
     catch (::testing::TestFailure const&) {                                    \
         throw;                                                                 \
@@ -41,8 +41,8 @@ struct TestContext
     char const** argv;
 };
 
-using TestFunction = auto(*)() -> void;
-using TestFunctionWithContext = auto(*)(TestContext const&) -> void;
+using TestFunction = auto (*)() -> void;
+using TestFunctionWithContext = auto (*)(TestContext const&) -> void;
 using Test = std::pair<char const*, TestFunction>;
 using TestWithContext = std::pair<char const*, TestFunctionWithContext>;
 

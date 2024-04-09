@@ -266,6 +266,14 @@ struct IntrusiveList
                               iterator first,
                               iterator last) noexcept -> iterator
     {
+        EXIOS_EXPECT(!(&other == this && before == first));
+
+        /* No-op if we're trying to splice the whole list
+         * onto itself. Just return `first`...
+         */
+        if (&other == this && first == other.begin() && last == other.end())
+            return first;
+
         auto it = first;
         while (it != last) {
             auto* val = &*it;
@@ -314,10 +322,9 @@ template <typename T, typename F>
 auto drain_list(exios::IntrusiveList<T>& list,
                 F&& op) noexcept(noexcept(op(list.front()))) -> void
 {
-    auto p = list.begin();
-    while (p != list.end()) {
-        auto item = &*p;
-        p = list.erase(p);
+    while (!list.empty()) {
+        auto item = &list.front();
+        list.pop_front();
         op(std::move(*item));
     }
 }

@@ -16,10 +16,13 @@ Work::Work(Work&& other) noexcept
 {
 }
 
-Work::~Work()
+Work::~Work() { reset(); }
+
+auto Work::reset() noexcept -> void
 {
     if (active_)
         ctx_.release_work();
+    active_ = false;
 }
 
 } // namespace exios
