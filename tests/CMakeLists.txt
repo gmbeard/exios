@@ -68,6 +68,13 @@ make_test(
 )
 
 make_test(
+    NAME intrusive_multimap_tests
+    SOURCES intrusive_multimap_tests.cpp
+    TIMEOUT 2
+    SIMPLE
+)
+
+make_test(
     NAME context_thread_tests
     SOURCES context_thread_tests.cpp
     TIMEOUT 2

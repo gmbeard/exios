@@ -10,6 +10,7 @@
 #include "./event.hpp"
 #include "./file_descriptor.hpp"
 #include "./intrusive_list.hpp"
+#include "./intrusive_multimap.hpp"
 #include "./io.hpp"
 #include "./result.hpp"
 #include "./scope_guard.hpp"
