@@ -5,6 +5,8 @@ if(NOT EXIOS_TEST_TYPE)
     set(EXIOS_TEST_TYPE "SIMPLE")
 endif()
 
+file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/tmp")
+
 make_test(
     NAME async_operation_tests
     SOURCES async_operation_tests.cpp
@@ -72,4 +74,12 @@ make_test(
     SOURCES context_thread_tests.cpp
     TIMEOUT 2
     SIMPLE
+)
+
+make_test(
+    NAME unix_socket_tests
+    SOURCES unix_socket_tests.cpp
+    SIMPLE
+    ENV_VARS
+        "TMP=${CMAKE_CURRENT_BINARY_DIR}/tmp"
 )
