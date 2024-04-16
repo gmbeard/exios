@@ -20,6 +20,7 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/cmake)
 include(CPPCheck)
 include(GNUInstallDirs)
 include(CheckIPOSupported)
+include(CMakePackageConfigHelpers)
 find_package(Doxygen)
 if(DOXYGEN_FOUND)
     doxygen_add_docs(
@@ -84,7 +85,37 @@ if(EXIOS_ENABLE_TESTS)
     add_subdirectory(tests)
 endif()
 
+configure_package_config_file(
+    ExiosConfig.cmake.in
+    ExiosConfig.cmake
+    INSTALL_DESTINATION "${CMAKE_INSTALL_PREFIX}/share/cmake/exios"
+)
+
+write_basic_package_version_file(
+    ExiosConfigVersion.cmake
+    COMPATIBILITY SameMajorVersion
+)
+
+install(
+    FILES
+        "${CMAKE_CURRENT_BINARY_DIR}/ExiosConfig.cmake"
+        "${CMAKE_CURRENT_BINARY_DIR}/ExiosConfigVersion.cmake"
+    DESTINATION "${CMAKE_INSTALL_PREFIX}/share/cmake/exios"
+)
+
 install(
     TARGETS exios
+    EXPORT ExiosTargets
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+)
+
+install(
+    EXPORT ExiosTargets
+    DESTINATION "${CMAKE_INSTALL_PREFIX}/share/cmake/exios"
+    NAMESPACE Exios::
+)
+
+install(
+    DIRECTORY "${PROJECT_SOURCE_DIR}/include/exios"
+    DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
 )
