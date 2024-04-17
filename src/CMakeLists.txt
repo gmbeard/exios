@@ -19,6 +19,8 @@ add_library(
     work.cpp
 )
 
+add_library(Exios::exios ALIAS exios)
+
 target_include_directories(
     exios
     PUBLIC
