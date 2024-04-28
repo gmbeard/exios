@@ -60,7 +60,7 @@ auto should_be_exception_safe() -> void
 auto should_be_exception_safe_multi_threaded() -> void
 {
     exios::ContextThread thread;
-    exios::Work work { thread };
+    exios::Work<exios::ContextThread> work { thread };
 
     std::atomic_size_t completed = 0;
 

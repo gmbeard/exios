@@ -262,7 +262,7 @@ auto IoScheduler::empty() const noexcept -> bool
     return poll_queue_length_ == 0;
 }
 
-auto IoScheduler::poll_once() -> std::size_t
+auto IoScheduler::poll_once(bool block) -> std::size_t
 {
     {
         std::lock_guard lock { data_mutex_ };
@@ -281,7 +281,7 @@ auto IoScheduler::poll_once() -> std::size_t
 
     auto buffer = event_buffer();
 
-    int poll_timeout = -1;
+    int poll_timeout = block ? -1 : 0;
     std::size_t num_events = 0;
     std::size_t num_processed = 0;
 
@@ -317,7 +317,7 @@ auto IoScheduler::poll_once() -> std::size_t
             num_processed += num;
         }
     }
-    while (num_events == buffer.size());
+    while (num_events == buffer.size() && !block);
 
     return num_processed;
 }

@@ -16,7 +16,6 @@ add_library(
     signal.cpp
     timer.cpp
     unix_socket.cpp
-    work.cpp
 )
 
 add_library(Exios::exios ALIAS exios)
