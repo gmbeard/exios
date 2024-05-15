@@ -41,6 +41,8 @@ struct Event : IoObject
 {
     Event(Context const& ctx);
 
+    auto cancel() noexcept -> void;
+
     template <typename F>
     auto trigger(F&& completion) -> void
     {
