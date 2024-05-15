@@ -50,10 +50,12 @@ auto event_buffer() -> std::span<epoll_event>
             continue;
         }
 
-        auto next = std::lower_bound(
+        auto first = std::lower_bound(
             list.begin(), last, fd, [](auto const& item, auto const& val) {
                 return item.get_fd() < val;
             });
+
+        auto next = first;
 
         std::size_t items_for_this_fd = 0;
         std::size_t items_processed_for_this_fd = 0;
@@ -101,7 +103,22 @@ auto event_buffer() -> std::span<epoll_event>
          * given FD then we can de-register it from epoll...
          */
         if (items_for_this_fd == items_processed_for_this_fd) {
-            ::epoll_ctl(efd, EPOLL_CTL_DEL, fd, &event);
+            EXIOS_EXPECT(::epoll_ctl(efd, EPOLL_CTL_DEL, fd, &event) == 0);
+        }
+        else {
+            /* ...Otherwise, we must reset the events we want to listen for.
+             * This is especially important for eventfds because if we don't
+             * then we could still get woken for writes when there are only
+             * reads waiting, potentially causing a busy loop that makes no
+             * progress (and consumes all the CPU)...
+             */
+            event.events = 0;
+            while (first != next) {
+                event.events |=
+                    (first->is_read_operation() ? EPOLLIN : EPOLLOUT);
+                ++first;
+            }
+            EXIOS_EXPECT(::epoll_ctl(efd, EPOLL_CTL_MOD, fd, &event) == 0);
         }
 
         total_processed += items_processed_for_this_fd;
