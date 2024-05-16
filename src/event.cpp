@@ -1,6 +1,7 @@
 #include "exios/event.hpp"
 #include "exios/buffer_view.hpp"
 #include "exios/io.hpp"
+#include "exios/io_scheduler.hpp"
 #include <cinttypes>
 #include <errno.h>
 #include <sys/eventfd.h>
@@ -14,6 +15,18 @@ Event::Event(Context const& ctx)
 {
     if (fd_.value() < 0)
         throw std::system_error { errno, std::system_category() };
+}
+
+Event::Event(Context const& ctx, SemaphoreModeTag)
+    : IoObject { ctx, ::eventfd(0, EFD_CLOEXEC | EFD_NONBLOCK | EFD_SEMAPHORE) }
+{
+    if (fd_.value() < 0)
+        throw std::system_error { errno, std::system_category() };
+}
+
+auto Event::cancel() noexcept -> void
+{
+    ctx_.io_scheduler().cancel(fd_.value());
 }
 
 } // namespace exios

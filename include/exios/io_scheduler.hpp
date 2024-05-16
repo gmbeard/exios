@@ -25,7 +25,7 @@ struct IoScheduler
     auto empty() const noexcept -> bool;
     auto schedule(AsyncIoOperation* op) noexcept -> void;
     auto cancel(int fd) noexcept -> void;
-    [[nodiscard]] auto poll_once() -> std::size_t;
+    [[nodiscard]] auto poll_once(bool block = true) -> std::size_t;
 
 private:
     ContextThread& ctx_;

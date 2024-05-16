@@ -2,6 +2,7 @@
 #define EXIOS_CONTEXT_HPP_INCLUDED
 
 #include "exios/async_operation.hpp"
+#include "exios/work.hpp"
 
 namespace exios
 {
@@ -20,7 +21,7 @@ struct Context
     template <typename F, typename Alloc>
     auto post(F&& f, Alloc const& alloc) -> void
     {
-        post(make_async_operation(std::forward<F>(f), alloc));
+        post(make_async_operation(wrap_work(std::forward<F>(f), *this), alloc));
     }
 
 private:
