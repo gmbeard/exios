@@ -103,7 +103,8 @@ auto event_buffer() -> std::span<epoll_event>
          * given FD then we can de-register it from epoll...
          */
         if (items_for_this_fd == items_processed_for_this_fd) {
-            EXIOS_EXPECT(::epoll_ctl(efd, EPOLL_CTL_DEL, fd, &event) == 0);
+            auto const error = ::epoll_ctl(efd, EPOLL_CTL_DEL, fd, &event);
+            EXIOS_EXPECT(!error || errno == ENOENT);
         }
         else {
             /* ...Otherwise, we must reset the events we want to listen for.
