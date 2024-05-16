@@ -174,10 +174,15 @@ auto TimerExpiryOrEvent::cancel() noexcept -> void
         result_error(std::make_error_code(std::errc::operation_canceled)));
 }
 
+EventWrite::EventWrite(std::optional<std::uint64_t> value_to_write) noexcept
+    : value_to_write_ { std::move(value_to_write) }
+{
+}
+
 auto EventWrite::io(int fd) noexcept -> bool
 {
     EXIOS_EXPECT(!result_);
-    std::uint64_t val = 1;
+    std::uint64_t val = value_to_write_.has_value() ? *value_to_write_ : 1;
     ConstBufferView buffer { .data = &val, .size = sizeof(val) };
     auto r = perform_write(fd, buffer);
     if (r.is_error_value() && (r.error() == std::errc::operation_would_block ||

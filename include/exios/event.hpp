@@ -6,9 +6,17 @@
 #include "exios/io.hpp"
 #include "exios/io_object.hpp"
 #include "exios/work.hpp"
+#include <cinttypes>
+#include <optional>
 
 namespace exios
 {
+
+struct SemaphoreModeTag
+{
+};
+
+[[maybe_unused]] constexpr SemaphoreModeTag semaphone_mode {};
 
 /*!
  * An *I/O* object for triggering, and waiting on, events.
@@ -39,7 +47,8 @@ namespace exios
  */
 struct Event : IoObject
 {
-    Event(Context const& ctx);
+    explicit Event(Context const& ctx);
+    explicit Event(Context const& ctx, SemaphoreModeTag);
 
     auto cancel() noexcept -> void;
 
@@ -53,7 +62,24 @@ struct Event : IoObject
                                     wrap_work(std::move(completion), ctx_),
                                     alloc,
                                     ctx_,
-                                    fd_.value());
+                                    fd_.value(),
+                                    std::nullopt);
+
+        schedule_io(op);
+    }
+
+    template <typename F>
+    auto trigger_with_value(std::uint64_t val, F&& completion) -> void
+    {
+        auto const alloc = select_allocator(completion);
+
+        auto* op =
+            make_async_io_operation(event_write_operation,
+                                    wrap_work(std::move(completion), ctx_),
+                                    alloc,
+                                    ctx_,
+                                    fd_.value(),
+                                    val);
 
         schedule_io(op);
     }
