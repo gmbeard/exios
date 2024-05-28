@@ -4,6 +4,7 @@
 #include "exios/contracts.hpp"
 #include "exios/intrusive_list.hpp"
 #include "exios/poll_wake_event.hpp"
+#include "exios/scope_guard.hpp"
 #include <algorithm>
 #include <atomic>
 #include <cerrno>
@@ -59,11 +60,18 @@ auto event_buffer() -> std::span<epoll_event>
 
         std::size_t items_for_this_fd = 0;
         std::size_t items_processed_for_this_fd = 0;
+        decltype(event.events) events_to_reregister = 0;
 
         while (next != last && next->get_fd() == fd) {
 
             items_for_this_fd++;
             auto& item = *next++;
+
+            auto const new_interest =
+                (item.is_read_operation() ? EPOLLIN : EPOLLOUT);
+            exios::ScopeGuard reset_event { [&] {
+                events_to_reregister |= new_interest;
+            } };
 
             if (item.cancelled()) {
                 continue;
@@ -86,6 +94,8 @@ auto event_buffer() -> std::span<epoll_event>
             if (!item.perform_io()) {
                 continue;
             }
+
+            reset_event.deactivate();
 
             /* WARNING: The order of these operations is crucial; We must
              * erase the item from `list` _BEFORE_ posting to the
@@ -113,12 +123,7 @@ auto event_buffer() -> std::span<epoll_event>
              * reads waiting, potentially causing a busy loop that makes no
              * progress (and consumes all the CPU)...
              */
-            event.events = 0;
-            while (first != next) {
-                event.events |=
-                    (first->is_read_operation() ? EPOLLIN : EPOLLOUT);
-                ++first;
-            }
+            event.events = events_to_reregister;
             EXIOS_EXPECT(::epoll_ctl(efd, EPOLL_CTL_MOD, fd, &event) == 0);
         }
 
