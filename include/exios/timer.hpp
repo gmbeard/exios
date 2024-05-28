@@ -37,6 +37,16 @@ struct Timer : IoObject
                                F&& completion) -> void
     {
         cancel();
+        if (duration == std::chrono::nanoseconds::zero()) {
+            auto const alloc = select_allocator(completion);
+            auto f = [completion = std::move(completion)]() mutable {
+                std::move(completion)(TimerOrEventIoResult { result_ok(0ull) });
+            };
+
+            ctx_.post(std::move(f), alloc);
+            return;
+        }
+
         auto timerval = convert_to_itimerspec(
             std::chrono::duration_cast<std::chrono::nanoseconds>(duration));
 
