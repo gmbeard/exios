@@ -261,6 +261,10 @@ auto IoScheduler::cancel(int fd) noexcept -> void
     if (first_pos == last_pos)
         return;
 
+    /* Cancel the operations...
+     */
+    std::for_each(first_pos, last_pos, [](auto& item) { item.cancel(); });
+
     /* Move the cancelled FDs to the back of the list. We won't
      * remove them in anticipation of `cancel` being called from
      * a different thread; The FD may get notified while we're
@@ -270,11 +274,8 @@ auto IoScheduler::cancel(int fd) noexcept -> void
     begin_cancelled_ =
         operations_.splice(begin_cancelled_, first_pos, last_pos);
 
-    /* Cancel the operations and de-register the FD...
+    /* De-register the FD...
      */
-
-    std::for_each(first_pos, last_pos, [](auto& item) { item.cancel(); });
-
     ::epoll_ctl(epoll_fd_, EPOLL_CTL_DEL, fd, nullptr);
     wake_event_.trigger(threads_waiting);
     ctx_.notify();
