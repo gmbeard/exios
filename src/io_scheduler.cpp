@@ -288,9 +288,9 @@ auto IoScheduler::empty() const noexcept -> bool
 
 auto IoScheduler::poll_once(bool block) -> std::size_t
 {
+    std::size_t num_cancelled = 0;
     {
         std::lock_guard lock { data_mutex_ };
-        std::size_t num_cancelled = 0;
         begin_cancelled_ = process_cancellations(
             begin_cancelled_, operations_.end(), operations_, num_cancelled);
 
@@ -305,7 +305,15 @@ auto IoScheduler::poll_once(bool block) -> std::size_t
 
     auto buffer = event_buffer();
 
-    int poll_timeout = block ? -1 : 0;
+    /* NOTE:
+     * We don't block if we've processed any cancellations. This is to ensure
+     * cancel completions who then cancel additional I/O don't cause a
+     * deadlock. I think this could happen because the cancellation "wakeup"
+     * event may get dequeued _after_ a completion that cancels I/O, meaning the
+     * wakeup event will get reset and will no longer be pending...
+     */
+    int poll_timeout = block && num_cancelled == 0 ? -1 : 0;
+
     std::size_t num_events = 0;
     std::size_t num_processed = 0;
 
