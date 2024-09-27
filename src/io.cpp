@@ -203,8 +203,8 @@ auto SignalRead::io(int fd) noexcept -> bool
 {
     EXIOS_EXPECT(!result_);
     signalfd_siginfo val;
-    ConstBufferView buffer { .data = &val, .size = sizeof(val) };
-    auto r = perform_write(fd, buffer);
+    BufferView buffer { .data = &val, .size = sizeof(val) };
+    auto r = perform_read(fd, buffer);
     if (r.is_error_value() && (r.error() == std::errc::operation_would_block ||
                                r.error() == std::errc::operation_in_progress))
         return false;
