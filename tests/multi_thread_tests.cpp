@@ -14,7 +14,7 @@ auto should_expire_timer_on_background_thread() -> void
 
     exios::ContextThread thread;
     exios::Timer timer { thread };
-    exios::Work work { thread };
+    exios::Work<exios::ContextThread> work { thread };
 
     std::vector<std::thread> threads(num_threads_to_use);
     for (auto& t : threads) {

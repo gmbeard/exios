@@ -210,6 +210,7 @@ private:
 
 struct EventWrite
 {
+    explicit EventWrite(std::optional<std::uint64_t> value_to_write) noexcept;
     auto io(int fd) noexcept -> bool;
     auto cancel() noexcept -> void;
 
@@ -223,6 +224,7 @@ struct EventWrite
     }
 
 private:
+    std::optional<std::uint64_t> value_to_write_;
     std::optional<IoResult> result_;
 };
 

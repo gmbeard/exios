@@ -45,6 +45,8 @@ struct ContextThread
 
     auto io_scheduler() noexcept -> IoScheduler&;
 
+    auto get_context() const noexcept -> Context;
+
 private:
     auto notify() noexcept -> void;
 

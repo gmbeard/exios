@@ -4,6 +4,7 @@
 #include "exios/contracts.hpp"
 #include "exios/intrusive_list.hpp"
 #include "exios/poll_wake_event.hpp"
+#include "exios/scope_guard.hpp"
 #include <algorithm>
 #include <atomic>
 #include <cerrno>
@@ -50,18 +51,27 @@ auto event_buffer() -> std::span<epoll_event>
             continue;
         }
 
-        auto next = std::lower_bound(
+        auto first = std::lower_bound(
             list.begin(), last, fd, [](auto const& item, auto const& val) {
                 return item.get_fd() < val;
             });
 
+        auto next = first;
+
         std::size_t items_for_this_fd = 0;
         std::size_t items_processed_for_this_fd = 0;
+        decltype(event.events) events_to_reregister = 0;
 
         while (next != last && next->get_fd() == fd) {
 
             items_for_this_fd++;
             auto& item = *next++;
+
+            auto const new_interest =
+                (item.is_read_operation() ? EPOLLIN : EPOLLOUT);
+            exios::ScopeGuard reset_event { [&] {
+                events_to_reregister |= new_interest;
+            } };
 
             if (item.cancelled()) {
                 continue;
@@ -85,6 +95,8 @@ auto event_buffer() -> std::span<epoll_event>
                 continue;
             }
 
+            reset_event.deactivate();
+
             /* WARNING: The order of these operations is crucial; We must
              * erase the item from `list` _BEFORE_ posting to the
              * context's completion queue, otherwise the call to `.erase()`
@@ -101,7 +113,18 @@ auto event_buffer() -> std::span<epoll_event>
          * given FD then we can de-register it from epoll...
          */
         if (items_for_this_fd == items_processed_for_this_fd) {
-            ::epoll_ctl(efd, EPOLL_CTL_DEL, fd, &event);
+            auto const error = ::epoll_ctl(efd, EPOLL_CTL_DEL, fd, &event);
+            EXIOS_EXPECT(!error || errno == ENOENT);
+        }
+        else {
+            /* ...Otherwise, we must reset the events we want to listen for.
+             * This is especially important for eventfds because if we don't
+             * then we could still get woken for writes when there are only
+             * reads waiting, potentially causing a busy loop that makes no
+             * progress (and consumes all the CPU)...
+             */
+            event.events = events_to_reregister;
+            EXIOS_EXPECT(::epoll_ctl(efd, EPOLL_CTL_MOD, fd, &event) == 0);
         }
 
         total_processed += items_processed_for_this_fd;
@@ -238,6 +261,10 @@ auto IoScheduler::cancel(int fd) noexcept -> void
     if (first_pos == last_pos)
         return;
 
+    /* Cancel the operations...
+     */
+    std::for_each(first_pos, last_pos, [](auto& item) { item.cancel(); });
+
     /* Move the cancelled FDs to the back of the list. We won't
      * remove them in anticipation of `cancel` being called from
      * a different thread; The FD may get notified while we're
@@ -247,11 +274,8 @@ auto IoScheduler::cancel(int fd) noexcept -> void
     begin_cancelled_ =
         operations_.splice(begin_cancelled_, first_pos, last_pos);
 
-    /* Cancel the operations and de-register the FD...
+    /* De-register the FD...
      */
-
-    std::for_each(first_pos, last_pos, [](auto& item) { item.cancel(); });
-
     ::epoll_ctl(epoll_fd_, EPOLL_CTL_DEL, fd, nullptr);
     wake_event_.trigger(threads_waiting);
     ctx_.notify();
@@ -262,11 +286,11 @@ auto IoScheduler::empty() const noexcept -> bool
     return poll_queue_length_ == 0;
 }
 
-auto IoScheduler::poll_once() -> std::size_t
+auto IoScheduler::poll_once(bool block) -> std::size_t
 {
+    std::size_t num_cancelled = 0;
     {
         std::lock_guard lock { data_mutex_ };
-        std::size_t num_cancelled = 0;
         begin_cancelled_ = process_cancellations(
             begin_cancelled_, operations_.end(), operations_, num_cancelled);
 
@@ -281,7 +305,15 @@ auto IoScheduler::poll_once() -> std::size_t
 
     auto buffer = event_buffer();
 
-    int poll_timeout = -1;
+    /* NOTE:
+     * We don't block if we've processed any cancellations. This is to ensure
+     * cancel completions who then cancel additional I/O don't cause a
+     * deadlock. I think this could happen because the cancellation "wakeup"
+     * event may get dequeued _after_ a completion that cancels I/O, meaning the
+     * wakeup event will get reset and will no longer be pending...
+     */
+    int poll_timeout = block && num_cancelled == 0 ? -1 : 0;
+
     std::size_t num_events = 0;
     std::size_t num_processed = 0;
 
@@ -317,7 +349,7 @@ auto IoScheduler::poll_once() -> std::size_t
             num_processed += num;
         }
     }
-    while (num_events == buffer.size());
+    while (num_events == buffer.size() && !block);
 
     return num_processed;
 }

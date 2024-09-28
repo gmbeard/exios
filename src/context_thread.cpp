@@ -66,6 +66,11 @@ auto ContextThread::post(AnyAsyncOperation* op) noexcept -> void
     cvar_.notify_all();
 }
 
+auto ContextThread::get_context() const noexcept -> Context
+{
+    return Context { const_cast<ContextThread&>(*this) };
+}
+
 auto ContextThread::run_once() -> std::size_t
 {
     IntrusiveList<AnyAsyncOperation> tmp;
@@ -96,8 +101,15 @@ auto ContextThread::run_once() -> std::size_t
         num_processed += 1;
     });
 
+    bool more_completions_ready = false;
+
+    {
+        std::lock_guard lock { data_mutex_ };
+        more_completions_ready = !completion_queue_.empty();
+    }
+
     if (!io_scheduler_.empty())
-        static_cast<void>(io_scheduler_.poll_once());
+        static_cast<void>(io_scheduler_.poll_once(!more_completions_ready));
 
     return num_processed;
 }
