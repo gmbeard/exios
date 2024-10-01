@@ -1,3 +1,7 @@
+## 0.4.0
+### MINOR Changes:
+- Changes project to `LGPL-3.0-or-later` license
+
 ## 0.3.0
 ### MINOR Changes:
 - Adds *semaphore* operation mode to `Event`
