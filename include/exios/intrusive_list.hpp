@@ -19,6 +19,7 @@ template <typename T>
 concept ListItem = std::is_convertible_v<T&, ListItemBase const&>;
 
 template <ListItem T>
+requires(!std::is_reference_v<T>)
 struct IntrusiveList
 {
     IntrusiveList() noexcept { sentinel_.next = sentinel_.prev = &sentinel_; }
@@ -155,6 +156,7 @@ struct IntrusiveList
         }
     };
 
+    using value_type = std::add_pointer_t<T>;
     using iterator = Iterator<false>;
     using const_iterator = Iterator<true>;
 
@@ -167,7 +169,7 @@ struct IntrusiveList
     {
         EXIOS_EXPECT(pos != end());
         EXIOS_EXPECT(!empty());
-        auto* item = pos.current;
+        auto const* item = pos.current;
         auto next_item = std::next(pos);
 
         auto* prv = item->prev;
@@ -181,7 +183,6 @@ struct IntrusiveList
 
     [[nodiscard]] auto front() noexcept -> typename iterator::reference
     {
-        // cppcheck-suppress [nullPointerRedundantCheck]
         EXIOS_EXPECT(!empty());
         return *begin();
     }
@@ -210,9 +211,7 @@ struct IntrusiveList
     {
         EXIOS_EXPECT(item);
         sentinel_.next->prev = item;
-        // cppcheck-suppress [nullPointerRedundantCheck]
         item->prev = &sentinel_;
-        // cppcheck-suppress [nullPointerRedundantCheck]
         item->next = sentinel_.next;
         sentinel_.next = item;
     }
@@ -221,9 +220,7 @@ struct IntrusiveList
     {
         EXIOS_EXPECT(item);
         sentinel_.prev->next = item;
-        // cppcheck-suppress [nullPointerRedundantCheck]
         item->next = &sentinel_;
-        // cppcheck-suppress [nullPointerRedundantCheck]
         item->prev = sentinel_.prev;
         sentinel_.prev = item;
     }
@@ -253,9 +250,7 @@ struct IntrusiveList
 
         auto* before_item = before.current;
         before_item->prev->next = item;
-        // cppcheck-suppress [nullPointerRedundantCheck]
         item->prev = before_item->prev;
-        // cppcheck-suppress [nullPointerRedundantCheck]
         item->next = before_item;
         before_item->prev = item;
         return before;

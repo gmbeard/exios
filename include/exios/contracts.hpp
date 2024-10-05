@@ -8,8 +8,14 @@
 
 #define EXIOS_EXPECT(cond)                                                     \
     do {                                                                       \
-        if (!(cond))                                                           \
+        if (!(cond)) {                                                         \
             ::exios::contract_check_failed(EXIOS_STRINGIFY(cond));             \
+            /* Seems this is necessary to inform cppcheck that the check isn't \
+             * redundant. It doesn't seem to understand the [[noreturn]]       \
+             * attribute of contract_check_failed...                           \
+             */                                                                \
+            __builtin_unreachable();                                           \
+        }                                                                      \
     }                                                                          \
     while (0)
 

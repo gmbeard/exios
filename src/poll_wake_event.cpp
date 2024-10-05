@@ -1,4 +1,6 @@
 #include "exios/poll_wake_event.hpp"
+#include "exios/contracts.hpp"
+#include <cerrno>
 #include <cinttypes>
 #include <errno.h>
 #include <sys/eventfd.h>
@@ -17,13 +19,15 @@ PollWakeEvent::PollWakeEvent()
 auto PollWakeEvent::trigger(std::uint32_t n) const noexcept -> void
 {
     std::uint64_t val { n };
-    ::write(fd_.value(), &val, sizeof(val));
+    [[maybe_unused]] auto const r = ::write(fd_.value(), &val, sizeof(val));
+    EXIOS_EXPECT(r >= 0 || errno == EWOULDBLOCK || errno == EAGAIN);
 }
 
 auto PollWakeEvent::reset() const noexcept -> void
 {
     [[maybe_unused]] std::uint64_t val;
-    ::read(fd_.value(), &val, sizeof(val));
+    [[maybe_unused]] auto const r = ::read(fd_.value(), &val, sizeof(val));
+    EXIOS_EXPECT(r >= 0 || errno == EWOULDBLOCK || errno == EAGAIN);
 }
 
 auto PollWakeEvent::get_fd() const noexcept -> int { return fd_.value(); }
