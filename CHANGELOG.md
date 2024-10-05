@@ -1,3 +1,9 @@
+## 0.4.1
+### PATCH Changes:
+- Fixes some code smells reported by cppcheck
+- Increases static analysis strictness
+- Adds some hardening to release builds
+
 ## 0.4.0
 ### MINOR Changes:
 - Changes project to `LGPL-3.0-or-later` license
