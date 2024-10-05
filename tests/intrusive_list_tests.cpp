@@ -1,6 +1,7 @@
 #include "exios/exios.hpp"
 #include "exios/intrusive_list.hpp"
 #include "testing.hpp"
+#include <algorithm>
 #include <array>
 #include <iostream>
 #include <iterator>
@@ -79,9 +80,10 @@ auto should_splice_items_from_other_list() -> void
 
     exios::IntrusiveList<TestListItem> list, tmp;
 
-    for (auto& i : items) {
-        list.push_back(&i);
-    }
+    std::transform(items.begin(),
+                   items.end(),
+                   std::back_inserter(list),
+                   [](auto& val) { return std::addressof(val); });
 
     EXPECT(!list.empty());
 
@@ -99,9 +101,10 @@ auto should_splice_single_item_in_same_list() -> void
 
     exios::IntrusiveList<TestListItem> list;
 
-    for (auto& i : items) {
-        list.push_back(&i);
-    }
+    std::transform(items.begin(),
+                   items.end(),
+                   std::back_inserter(list),
+                   [](auto& val) { return std::addressof(val); });
 
     EXPECT(!list.empty());
 
@@ -119,9 +122,10 @@ auto should_splice_items_in_same_list() -> void
 
     exios::IntrusiveList<TestListItem> list;
 
-    for (auto& i : items) {
-        list.push_back(&i);
-    }
+    std::transform(items.begin(),
+                   items.end(),
+                   std::back_inserter(list),
+                   [](auto& val) { return std::addressof(val); });
 
     EXPECT(!list.empty());
 
@@ -159,9 +163,10 @@ auto should_splice_whole_list_onto_itself() -> void
 
     exios::IntrusiveList<TestListItem> list;
 
-    for (auto& i : items) {
-        list.push_back(&i);
-    }
+    std::transform(items.begin(),
+                   items.end(),
+                   std::back_inserter(list),
+                   [](auto& val) { return std::addressof(val); });
 
     auto splice_point = list.splice(list.end(), list, list.begin(), list.end());
     EXPECT(splice_point == list.begin());

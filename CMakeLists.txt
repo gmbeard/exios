@@ -9,10 +9,18 @@ project(
     VERSION ${current_version}
 )
 
+option(
+    EXIOS_DISABLE_CPPCHECK
+    "Disable cppcheck"
+    OFF
+)
+
 if (CMAKE_BUILD_TYPE STREQUAL "")
     message(STATUS "Defaulting CMAKE_BUILD_TYPE to Release")
     set(CMAKE_BUILD_TYPE "Release")
 endif()
+
+set(CMAKE_CXX_FLAGS_RELEASE "-O2 -fstack-protector-strong -D_FORTIFY_SOURCE=2")
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_STANDARD 20)
