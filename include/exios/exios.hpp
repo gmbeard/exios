@@ -14,6 +14,7 @@
 #include "./result.hpp"
 #include "./scope_guard.hpp"
 #include "./signal.hpp"
+#include "./tcp_socket.hpp"
 #include "./timer.hpp"
 #include "./unix_socket.hpp"
 #include "./work.hpp"
