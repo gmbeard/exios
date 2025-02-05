@@ -14,6 +14,7 @@ add_library(
     poll_wake_event.cpp
     result.cpp
     signal.cpp
+    tcp_socket.cpp
     timer.cpp
     unix_socket.cpp
 )

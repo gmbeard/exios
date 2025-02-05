@@ -13,6 +13,8 @@ struct IoObject
 {
     IoObject(Context const&, FileDescriptor&& fd) noexcept;
 
+    auto get_context() const noexcept -> Context const& { return ctx_; }
+
 protected:
     auto schedule_io(AsyncIoOperation* op) noexcept -> void;
 

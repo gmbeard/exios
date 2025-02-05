@@ -83,3 +83,9 @@ make_test(
     ENV_VARS
         "TMP=${CMAKE_CURRENT_BINARY_DIR}/tmp"
 )
+
+make_test(
+    NAME tcp_socket_tests
+    SOURCES tcp_socket_tests.cpp
+    SIMPLE
+)
