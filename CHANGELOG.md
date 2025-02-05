@@ -1,3 +1,10 @@
+## 0.5.0
+### MINOR Changes:
+- Adds I/O object for handling TCP socket operations
+
+### PATCH Changes:
+- Adds `get_context()` accessor to all I/O objects
+
 ## 0.4.1
 ### PATCH Changes:
 - Fixes some code smells reported by cppcheck
