@@ -106,6 +106,8 @@ TcpSocket::TcpSocket(Context const& ctx, int fd) noexcept
 {
 }
 
+auto TcpSocket::cancel() -> void { ctx_.io_scheduler().cancel(fd_.value()); }
+
 TcpSocketAcceptor::TcpSocketAcceptor(Context const& ctx,
                                      std::uint16_t port,
                                      std::string_view address)
