@@ -1,3 +1,7 @@
+## 0.5.1
+### PATCH Changes:
+- Added missing `cancel()` operation on `TcpSocket`
+
 ## 0.5.0
 ### MINOR Changes:
 - Adds I/O object for handling TCP socket operations
