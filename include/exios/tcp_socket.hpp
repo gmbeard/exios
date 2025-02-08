@@ -13,6 +13,8 @@ struct TcpSocket : IoObject
 
     explicit TcpSocket(Context const&);
 
+    auto cancel() -> void;
+
     template <typename F>
     auto connect(std::string_view name, F&& completion) -> void
     {
