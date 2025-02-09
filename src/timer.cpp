@@ -21,8 +21,6 @@ Timer::Timer(Context const& ctx)
         throw std::system_error { errno, std::system_category() };
 }
 
-auto Timer::cancel() -> void { ctx_.io_scheduler().cancel(fd_.value()); }
-
 auto Timer::expire() -> void
 {
     auto timerval = convert_to_itimerspec(std::chrono::nanoseconds(1));

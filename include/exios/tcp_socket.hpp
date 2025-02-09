@@ -1,5 +1,10 @@
+#ifndef EXIOS_TCP_SOCKET_HPP_INCLUDED
+#define EXIOS_TCP_SOCKET_HPP_INCLUDED
+
 #include "exios/context.hpp"
+#include "exios/io.hpp"
 #include "exios/io_object.hpp"
+#include "exios/utils.hpp"
 #include <cstdint>
 #include <netinet/in.h>
 #include <string_view>
@@ -13,20 +18,24 @@ struct TcpSocket : IoObject
 
     explicit TcpSocket(Context const&);
 
-    auto cancel() -> void;
-
     template <typename F>
-    auto connect(std::string_view name, F&& completion) -> void
+    auto connect(std::string_view address, std::uint16_t port, F&& completion)
+        -> void
     {
+        sockaddr_in addr {};
+        addr.sin_family = AF_INET;
+        addr.sin_addr.s_addr = reverse_byte_order(parse_ipv4(address));
+        addr.sin_port = reverse_byte_order(port);
+
         auto const alloc = select_allocator(completion);
 
-        auto* op =
-            make_async_io_operation(unix_connect_operation,
-                                    wrap_work(std::move(completion), ctx_),
-                                    alloc,
-                                    ctx_,
-                                    fd_.value(),
-                                    name);
+        auto* op = make_async_io_operation(
+            net_connect_operation,
+            wrap_work(std::move(completion), get_context()),
+            alloc,
+            ctx_,
+            fd_.value(),
+            addr);
 
         schedule_io(op);
     }
@@ -126,7 +135,6 @@ struct TcpSocketAcceptor : IoObject
 
     auto port() const noexcept -> std::uint16_t;
     auto address() const noexcept -> std::string_view;
-    auto cancel() noexcept -> void;
 
     template <typename F>
     auto accept(TcpSocket& target, F&& completion) -> void
@@ -159,3 +167,5 @@ private:
 };
 
 } // namespace exios
+
+#endif // EXIOS_TCP_SOCKET_HPP_INCLUDED

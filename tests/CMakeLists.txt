@@ -87,5 +87,13 @@ make_test(
 make_test(
     NAME tcp_socket_tests
     SOURCES tcp_socket_tests.cpp
+    TIMEOUT 2
+    SIMPLE
+)
+
+make_test(
+    NAME udp_socket_tests
+    SOURCES udp_socket_tests.cpp
+    TIMEOUT 2
     SIMPLE
 )

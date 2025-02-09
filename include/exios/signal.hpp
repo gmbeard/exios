@@ -13,8 +13,6 @@ struct Signal : IoObject
 {
     Signal(Context const& ctx, int sig);
 
-    auto cancel() -> void;
-
     template <typename F>
     auto wait(F&& f) -> void
     {

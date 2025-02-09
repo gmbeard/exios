@@ -50,8 +50,6 @@ struct Event : IoObject
     explicit Event(Context const& ctx);
     explicit Event(Context const& ctx, SemaphoreModeTag);
 
-    auto cancel() noexcept -> void;
-
     template <typename F>
     auto trigger(F&& completion) -> void
     {

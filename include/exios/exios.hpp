@@ -16,7 +16,9 @@
 #include "./signal.hpp"
 #include "./tcp_socket.hpp"
 #include "./timer.hpp"
+#include "./udp_socket.hpp"
 #include "./unix_socket.hpp"
+#include "./utils.hpp"
 #include "./work.hpp"
 
 #endif // EXIOS_EXIOS_HPP_INCLUDED

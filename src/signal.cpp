@@ -7,8 +7,6 @@
 namespace exios
 {
 
-auto Signal::cancel() -> void { ctx_.io_scheduler().cancel(fd_.value()); }
-
 Signal::Signal(Context const& ctx, int sig)
     : IoObject { ctx, [&] {
                     sigset_t mask;

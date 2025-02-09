@@ -30,7 +30,6 @@ struct Timer : IoObject
     Timer(Context const& ctx);
 
     auto expire() -> void;
-    auto cancel() -> void;
 
     template <typename Rep, typename Period, typename F>
     auto wait_for_expiry_after(std::chrono::duration<Rep, Period> duration,

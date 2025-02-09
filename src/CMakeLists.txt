@@ -16,7 +16,9 @@ add_library(
     signal.cpp
     tcp_socket.cpp
     timer.cpp
+    udp_socket.cpp
     unix_socket.cpp
+    utils.cpp
 )
 
 add_library(Exios::exios ALIAS exios)
