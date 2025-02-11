@@ -24,9 +24,4 @@ Event::Event(Context const& ctx, SemaphoreModeTag)
         throw std::system_error { errno, std::system_category() };
 }
 
-auto Event::cancel() noexcept -> void
-{
-    ctx_.io_scheduler().cancel(fd_.value());
-}
-
 } // namespace exios

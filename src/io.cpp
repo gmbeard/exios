@@ -3,9 +3,11 @@
 #include <cerrno>
 #include <cstddef>
 #include <errno.h>
+#include <netinet/in.h>
 #include <sys/signalfd.h>
 #include <sys/socket.h>
 #include <system_error>
+#include <tuple>
 #include <unistd.h>
 
 namespace exios
@@ -127,6 +129,36 @@ auto UnixConnect::io(int fd) noexcept -> bool
 }
 
 auto UnixConnect::cancel() noexcept -> void
+{
+    result_.emplace(
+        result_error(std::make_error_code(std::errc::operation_canceled)));
+}
+
+NetConnect::NetConnect(sockaddr_in addr) noexcept
+    : addr_ { addr }
+{
+}
+
+auto NetConnect::io(int fd) noexcept -> bool
+{
+    EXIOS_EXPECT(!result_);
+    auto const r =
+        ::connect(fd, reinterpret_cast<sockaddr const*>(&addr_), sizeof(addr_));
+    if (r < 0 && (errno == EAGAIN || errno == EINPROGRESS))
+        return false;
+
+    if (r < 0) {
+        result_.emplace(
+            result_error(std::error_code { errno, std::system_category() }));
+    }
+    else {
+        result_.emplace(ConnectResult {});
+    }
+
+    return true;
+}
+
+auto NetConnect::cancel() noexcept -> void
 {
     result_.emplace(
         result_error(std::make_error_code(std::errc::operation_canceled)));
@@ -260,6 +292,78 @@ auto ReceiveMessage::io(int fd) noexcept -> bool
 }
 
 auto ReceiveMessage::cancel() noexcept -> void
+{
+    result_.emplace(
+        result_error(std::make_error_code(std::errc::operation_canceled)));
+}
+
+NetSendTo::NetSendTo(ConstBufferView buffer, sockaddr_in addr) noexcept
+    : buffer_ { buffer }
+    , addr_ { addr }
+{
+}
+
+auto NetSendTo::io(int fd) noexcept -> bool
+{
+    EXIOS_EXPECT(!result_);
+    auto const r = ::sendto(fd,
+                            buffer_.data,
+                            buffer_.size,
+                            0,
+                            reinterpret_cast<sockaddr const*>(&addr_),
+                            sizeof(addr_));
+    if (r < 0 && (errno == EAGAIN || errno == EINPROGRESS))
+        return false;
+
+    if (r < 0) {
+        result_.emplace(
+            result_error(std::error_code { errno, std::system_category() }));
+    }
+    else {
+        result_.emplace(result_ok(static_cast<std::size_t>(r)));
+    }
+
+    return true;
+}
+
+auto NetSendTo::cancel() noexcept -> void
+{
+    result_.emplace(
+        result_error(std::make_error_code(std::errc::operation_canceled)));
+}
+
+NetReceiveFrom::NetReceiveFrom(BufferView buffer) noexcept
+    : buffer_ { buffer }
+{
+}
+
+auto NetReceiveFrom::io(int fd) noexcept -> bool
+{
+    EXIOS_EXPECT(!result_);
+    sockaddr_in source_addr {};
+    socklen_t source_addr_len = static_cast<socklen_t>(sizeof(source_addr));
+    auto const r = ::recvfrom(fd,
+                              buffer_.data,
+                              buffer_.size,
+                              0,
+                              reinterpret_cast<sockaddr*>(&source_addr),
+                              &source_addr_len);
+    if (r < 0 && (errno == EAGAIN || errno == EINPROGRESS))
+        return false;
+
+    if (r < 0) {
+        result_.emplace(
+            result_error(std::error_code { errno, std::system_category() }));
+    }
+    else {
+        result_.emplace(result_ok(
+            std::make_tuple(static_cast<std::size_t>(r), source_addr)));
+    }
+
+    return true;
+}
+
+auto NetReceiveFrom::cancel() noexcept -> void
 {
     result_.emplace(
         result_error(std::make_error_code(std::errc::operation_canceled)));

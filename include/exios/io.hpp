@@ -5,6 +5,7 @@
 #include "exios/contracts.hpp"
 #include "exios/result.hpp"
 #include <cinttypes>
+#include <netinet/in.h>
 #include <optional>
 #include <sys/signalfd.h>
 #include <sys/socket.h>
@@ -48,6 +49,18 @@ struct SendMessageOperation
 {
 };
 
+struct NetConnectOperation
+{
+};
+
+struct NetSendToOperation
+{
+};
+
+struct NetReceiveFromOperation
+{
+};
+
 constexpr WriteOperation write_operation {};
 constexpr ReadOperation read_operation {};
 constexpr TimerExpiryOrEventOperation timer_expiry_operation {};
@@ -58,6 +71,9 @@ constexpr UnixConnectOperation unix_connect_operation {};
 constexpr UnixAcceptOperation unix_accept_operation {};
 constexpr SendMessageOperation send_message_operation {};
 constexpr ReceiveMessageOperation receive_message_operation {};
+constexpr NetConnectOperation net_connect_operation {};
+constexpr NetSendToOperation net_send_to_operation {};
+constexpr NetReceiveFromOperation net_receive_from_operation {};
 
 using IoResult = Result<std::size_t, std::error_code>;
 using ConnectResult = Result<std::error_code>;
@@ -66,6 +82,8 @@ using TimerOrEventIoResult = Result<std::uint64_t, std::error_code>;
 using SignalResult = Result<signalfd_siginfo, std::error_code>;
 using ReceiveMessageResult =
     Result<std::pair<std::size_t, msghdr>, std::error_code>;
+using ReceiveFromResult =
+    Result<std::tuple<std::size_t, sockaddr_in>, std::error_code>;
 
 auto perform_read(int fd, BufferView buffer) noexcept -> IoResult;
 auto perform_write(int fd, ConstBufferView buffer) noexcept -> IoResult;
@@ -151,6 +169,47 @@ private:
     msghdr msg_;
 };
 
+struct NetSendTo
+{
+    explicit NetSendTo(ConstBufferView buffer, sockaddr_in addr) noexcept;
+    auto io(int fd) noexcept -> bool;
+    auto cancel() noexcept -> void;
+
+    static constexpr auto is_readable = std::false_type {};
+
+    template <typename F>
+    auto dispatch(F&& f) -> void
+    {
+        EXIOS_EXPECT(result_);
+        std::forward<F>(f)(std::move(*result_));
+    }
+
+private:
+    std::optional<IoResult> result_;
+    ConstBufferView buffer_;
+    sockaddr_in addr_;
+};
+
+struct NetReceiveFrom
+{
+    explicit NetReceiveFrom(BufferView buffer) noexcept;
+    auto io(int fd) noexcept -> bool;
+    auto cancel() noexcept -> void;
+
+    static constexpr auto is_readable = std::true_type {};
+
+    template <typename F>
+    auto dispatch(F&& f) -> void
+    {
+        EXIOS_EXPECT(result_);
+        std::forward<F>(f)(std::move(*result_));
+    }
+
+private:
+    std::optional<ReceiveFromResult> result_;
+    BufferView buffer_;
+};
+
 struct UnixConnect
 {
     explicit UnixConnect(std::string_view name) noexcept;
@@ -170,6 +229,27 @@ struct UnixConnect
 private:
     std::optional<ConnectResult> result_;
     sockaddr_un addr_;
+};
+
+struct NetConnect
+{
+    explicit NetConnect(sockaddr_in addr) noexcept;
+
+    auto io(int fd) noexcept -> bool;
+    auto cancel() noexcept -> void;
+
+    static constexpr auto is_readable = std::false_type {};
+
+    template <typename F>
+    auto dispatch(F&& f) -> void
+    {
+        EXIOS_EXPECT(result_);
+        std::forward<F>(f)(std::move(*result_));
+    }
+
+private:
+    std::optional<ConnectResult> result_;
+    sockaddr_in addr_;
 };
 
 struct UnixAccept
@@ -286,6 +366,12 @@ struct IoOperation<UnixConnectOperation>
 };
 
 template <>
+struct IoOperation<NetConnectOperation>
+{
+    using type = NetConnect;
+};
+
+template <>
 struct IoOperation<UnixAcceptOperation>
 {
     using type = UnixAccept;
@@ -301,6 +387,18 @@ template <>
 struct IoOperation<ReceiveMessageOperation>
 {
     using type = ReceiveMessage;
+};
+
+template <>
+struct IoOperation<NetSendToOperation>
+{
+    using type = NetSendTo;
+};
+
+template <>
+struct IoOperation<NetReceiveFromOperation>
+{
+    using type = NetReceiveFrom;
 };
 
 template <typename Tag>

@@ -21,4 +21,20 @@ auto schedule_io(Context ctx, AsyncIoOperation* op) noexcept -> void
     ctx.io_scheduler().schedule(op);
 }
 
+auto IoObject::get_context() const noexcept -> Context const&
+{
+    return ctx_;
+}
+
+auto IoObject::close() noexcept -> void
+{
+    ::close(fd_.value());
+    fd_ = FileDescriptor {};
+}
+
+auto IoObject::cancel() noexcept -> void
+{
+    ctx_.io_scheduler().cancel(fd_.value());
+}
+
 } // namespace exios
