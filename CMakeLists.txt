@@ -29,7 +29,10 @@ include(CPPCheck)
 include(GNUInstallDirs)
 include(CheckIPOSupported)
 include(CMakePackageConfigHelpers)
+
 find_package(Doxygen)
+find_package(OpenSSL REQUIRED)
+
 if(DOXYGEN_FOUND)
     doxygen_add_docs(
         docs

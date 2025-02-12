@@ -97,3 +97,17 @@ make_test(
     TIMEOUT 2
     SIMPLE
 )
+
+make_test(
+    NAME tls_tests
+    SOURCES tls_tests.cpp
+    TIMEOUT 2
+    SIMPLE
+)
+
+#add_test(NAME tls_setup COMMAND ${CMAKE_CURRENT_LIST_DIR}/scripts/initialize_s_server.sh)
+#add_test(NAME tls_cleanup COMMAND ${CMAKE_CURRENT_LIST_DIR}/scripts/shutdown_s_server.sh)
+#
+#set_tests_properties(tls_tests PROPERTIES FIXTURES_REQUIRED tls)
+#set_tests_properties(tls_setup PROPERTIES FIXTURES_SETUP tls)
+#set_tests_properties(tls_cleanup PROPERTIES FIXTURES_CLEANUP tls)
