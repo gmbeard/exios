@@ -4,13 +4,11 @@
 
 namespace exios
 {
-auto contract_check_failed(char const* msg, std::source_location loc) -> void
+auto contract_check_failed(char const* msg, char const* file, unsigned int line)
+    -> void
 {
-    std::fprintf(stderr,
-                 "Contract check failed: %s - %s:%u\n",
-                 msg,
-                 loc.file_name(),
-                 loc.line());
+    std::fprintf(
+        stderr, "Contract check failed: %s - %s:%u\n", msg, file, line);
     std::terminate();
 }
 } // namespace exios
