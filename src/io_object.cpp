@@ -37,4 +37,9 @@ auto IoObject::cancel() noexcept -> void
     ctx_.io_scheduler().cancel(fd_.value());
 }
 
+auto IoObject::os_handle() const noexcept -> int
+{
+    return fd_.value();
+}
+
 } // namespace exios

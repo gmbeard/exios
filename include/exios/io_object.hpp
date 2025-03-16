@@ -19,6 +19,8 @@ struct IoObject
 
     auto cancel() noexcept -> void;
 
+    auto os_handle() const noexcept -> int;
+
 protected:
     auto schedule_io(AsyncIoOperation* op) noexcept -> void;
 
