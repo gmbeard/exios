@@ -47,12 +47,14 @@ check_ipo_supported(
     LANGUAGES CXX
 )
 
-if (EXIOS_IPO_SUPPORTED)
-    message(STATUS "IPO supported. Enabling")
-    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)
-else ()
-    message(STATUS "IPO not supported: ${EXIOS_IPO_SUPORTED_OUTPUT}")
-endif ()
+if (NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
+    if (EXIOS_IPO_SUPPORTED)
+        message(STATUS "${PROJECT_NAME} IPO supported. Enabling")
+        set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)
+    else ()
+        message(STATUS "${PROJECT_NAME} IPO not supported: ${EXIOS_IPO_SUPORTED_OUTPUT}")
+    endif ()
+endif()
 
 string(TOLOWER ${CMAKE_CXX_BYTE_ORDER} EXIOS_BYTE_ORDER)
 
