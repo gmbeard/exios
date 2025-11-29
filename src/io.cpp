@@ -102,6 +102,7 @@ auto IoWrite::io(int fd) noexcept -> bool
 
 UnixConnect::UnixConnect(std::string_view name) noexcept
     : addr_ {}
+    , name_length_ { name.size() }
 {
     EXIOS_EXPECT(name.size() < sizeof(addr_.sun_path));
     addr_.sun_family = AF_UNIX;
@@ -112,8 +113,9 @@ UnixConnect::UnixConnect(std::string_view name) noexcept
 auto UnixConnect::io(int fd) noexcept -> bool
 {
     EXIOS_EXPECT(!result_);
+    std::size_t len = offsetof(sockaddr_un, sun_path) + 1 + name_length_;
     auto const r =
-        ::connect(fd, reinterpret_cast<sockaddr const*>(&addr_), sizeof(addr_));
+        ::connect(fd, reinterpret_cast<sockaddr const*>(&addr_), len);
     if (r < 0 && (errno == EAGAIN || errno == EINPROGRESS))
         return false;
 

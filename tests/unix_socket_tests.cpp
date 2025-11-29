@@ -21,8 +21,13 @@ auto should_construct_unix_socket() -> void
 
 auto should_construct_unix_socket_acceptor() -> void
 {
+    std::string_view const name = "test";
+
     exios::ContextThread thread;
-    exios::UnixSocketAcceptor socket { thread, "test"sv };
+    exios::UnixSocketAcceptor socket { thread, name };
+
+    std::cerr << "Acceptor name: " << socket.name() << '\n';
+    EXPECT(socket.name() == name);
 }
 
 auto should_connect_and_accept() -> void

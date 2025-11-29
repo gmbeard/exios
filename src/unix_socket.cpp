@@ -28,6 +28,7 @@ UnixSocketAcceptor::UnixSocketAcceptor(Context const& ctx,
                  ::socket(
                      AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, 0) }
     , addr_ {}
+    , name_length_ { abstract_name.size() }
 {
     EXIOS_EXPECT(abstract_name.size() < sizeof(addr_.sun_path));
 
@@ -38,9 +39,11 @@ UnixSocketAcceptor::UnixSocketAcceptor(Context const& ctx,
     addr_.sun_path[0] = '\0';
     abstract_name.copy(addr_.sun_path + 1, abstract_name.size());
 
-    if (auto const result = ::bind(fd_.value(),
-                                   reinterpret_cast<sockaddr const*>(&addr_),
-                                   sizeof(addr_));
+    std::size_t len =
+        offsetof(sockaddr_un, sun_path) + 1 + abstract_name.size();
+
+    if (auto const result =
+            ::bind(fd_.value(), reinterpret_cast<sockaddr const*>(&addr_), len);
         result < 0)
         throw std::system_error { errno, std::system_category() };
 
@@ -50,7 +53,7 @@ UnixSocketAcceptor::UnixSocketAcceptor(Context const& ctx,
 
 auto UnixSocketAcceptor::name() const noexcept -> std::string_view
 {
-    return { addr_.sun_path + 1, sizeof(addr_.sun_path) - 1 };
+    return { addr_.sun_path + 1, name_length_ };
 }
 
 } // namespace exios

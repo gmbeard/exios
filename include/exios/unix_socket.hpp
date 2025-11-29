@@ -152,6 +152,7 @@ struct UnixSocketAcceptor : IoObject
 
 private:
     sockaddr_un addr_;
+    std::size_t name_length_;
 };
 
 } // namespace exios
