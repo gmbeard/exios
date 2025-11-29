@@ -1,3 +1,10 @@
+## 0.6.0
+### MINOR Changes:
+- Added UDP socket I/O
+
+### PATCH Changes:
+- Fixes a bug where unix sockets where being created with an incorrect size
+
 ## 0.5.1
 ### PATCH Changes:
 - Added missing `cancel()` operation on `TcpSocket`
