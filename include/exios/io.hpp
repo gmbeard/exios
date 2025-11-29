@@ -229,6 +229,7 @@ struct UnixConnect
 private:
     std::optional<ConnectResult> result_;
     sockaddr_un addr_;
+    std::size_t name_length_;
 };
 
 struct NetConnect
