@@ -3,6 +3,7 @@
 
 #include "exios/buffer_view.hpp"
 #include "exios/contracts.hpp"
+#include "exios/message.hpp"
 #include "exios/result.hpp"
 #include <cinttypes>
 #include <netinet/in.h>
@@ -12,6 +13,7 @@
 #include <sys/un.h>
 #include <system_error>
 #include <tuple>
+#include <type_traits>
 
 namespace exios
 {
@@ -45,8 +47,21 @@ struct UnixAcceptOperation
 struct ReceiveMessageOperation
 {
 };
+
 struct SendMessageOperation
 {
+};
+
+template <typename Allocator>
+struct SendMessageManagedOperation
+{
+    using allocator = std::remove_cvref_t<Allocator>;
+};
+
+template <typename Allocator>
+struct ReceiveMessageManagedOperation
+{
+    using allocator = std::remove_cvref_t<Allocator>;
 };
 
 struct NetConnectOperation
@@ -75,7 +90,23 @@ constexpr NetConnectOperation net_connect_operation {};
 constexpr NetSendToOperation net_send_to_operation {};
 constexpr NetReceiveFromOperation net_receive_from_operation {};
 
+template <typename Allocator>
+constexpr auto send_message_managed_operation() noexcept
+    -> SendMessageManagedOperation<Allocator>
+{
+    return {};
+}
+
+template <typename Allocator>
+constexpr auto receive_message_managed_operation() noexcept
+    -> ReceiveMessageManagedOperation<Allocator>
+{
+    return {};
+}
+
 using IoResult = Result<std::size_t, std::error_code>;
+using ReceiveMessageManagedResult =
+    Result<std::pair<std::size_t, std::size_t>, std::error_code>;
 using ConnectResult = Result<std::error_code>;
 using AcceptResult = Result<int, std::error_code>;
 using TimerOrEventIoResult = Result<std::uint64_t, std::error_code>;
@@ -88,6 +119,8 @@ using ReceiveFromResult =
 auto perform_read(int fd, BufferView buffer) noexcept -> IoResult;
 auto perform_write(int fd, ConstBufferView buffer) noexcept -> IoResult;
 auto perform_timer_or_event_read(int fd) noexcept -> TimerOrEventIoResult;
+auto perform_send(int fd, msghdr const& buf) noexcept -> IoResult;
+auto perform_receive(int fd, msghdr& buf) noexcept -> ReceiveMessageResult;
 
 struct IoOpBase
 {
@@ -167,6 +200,143 @@ struct SendMessage
 private:
     std::optional<IoResult> result_;
     msghdr msg_;
+};
+
+template <typename Allocator>
+struct SendMessageManaged
+{
+    explicit SendMessageManaged(outgoing_message_base<Allocator> msg) noexcept
+        : msg_ { std::move(msg) }
+    {
+    }
+
+    auto io(int fd) noexcept -> bool
+    {
+        EXIOS_EXPECT(!result_);
+        msghdr tmp;
+        try {
+            tmp = message_view(msg_);
+        }
+        catch (...) {
+            result_.emplace(result_error(
+                std::error_code { static_cast<int>(std::errc::no_buffer_space),
+                                  std::system_category() }));
+            return true;
+        }
+
+        std::array<iovec, 1> iov { iovec {
+            const_cast<void*>(msg_.data_buffer().data),
+            msg_.data_buffer().size } };
+        tmp.msg_iov = iov.data();
+        tmp.msg_iovlen = iov.size();
+
+        auto r = perform_send(fd, tmp);
+        if (!r && (r.error() == std::errc::operation_in_progress ||
+                   r.error() == std::errc::operation_would_block))
+            return false;
+
+        result_.emplace(std::move(r));
+        return true;
+    }
+
+    auto cancel() noexcept -> void
+    {
+        result_.emplace(
+            result_error(std::make_error_code(std::errc::operation_canceled)));
+    }
+
+    static constexpr auto is_readable = std::false_type {};
+
+    template <typename F>
+    auto dispatch(F&& f) -> void
+    {
+        EXIOS_EXPECT(result_);
+        std::forward<F>(f)(std::move(*result_));
+    }
+
+private:
+    std::optional<IoResult> result_;
+    outgoing_message_base<Allocator> msg_;
+};
+
+template <typename Allocator>
+struct ReceiveMessageManaged
+{
+    explicit ReceiveMessageManaged(
+        incoming_message_base<Allocator> msg) noexcept
+        : msg_ { std::move(msg) }
+    {
+    }
+
+    auto io(int fd) noexcept -> bool
+    {
+        EXIOS_EXPECT(!result_);
+        msghdr tmp;
+        try {
+            tmp = message_view(msg_);
+        }
+        catch (...) {
+            result_.emplace(result_error(
+                std::error_code { static_cast<int>(std::errc::no_buffer_space),
+                                  std::system_category() }));
+            return true;
+        }
+
+        std::array<iovec, 1> iov { iovec {
+            const_cast<void*>(msg_.data_buffer().data),
+            msg_.data_buffer().size } };
+        tmp.msg_iov = iov.data();
+        tmp.msg_iovlen = iov.size();
+
+        auto r = perform_receive(fd, tmp);
+        if (!r && (r.error() == std::errc::operation_in_progress ||
+                   r.error() == std::errc::operation_would_block))
+            return false;
+
+        if (!r) {
+            result_.emplace(result_error(r.error()));
+            return true;
+        }
+
+        std::size_t control_bytes_copied = 0;
+
+        if (msg_.control_buffer().size) {
+            auto control_buffer = msg_.control_buffer();
+            cmsghdr* cmsg = CMSG_FIRSTHDR(&tmp);
+            EXIOS_EXPECT(cmsg);
+            std::size_t const bytes_to_copy =
+                std::min(cmsg->cmsg_len, control_buffer.size);
+
+            std::copy_n(reinterpret_cast<std::uint8_t const*>(CMSG_DATA(cmsg)),
+                        bytes_to_copy,
+                        reinterpret_cast<std::uint8_t*>(control_buffer.data));
+
+            control_bytes_copied = bytes_to_copy;
+        }
+
+        result_.emplace(result_ok(
+            std::make_pair(std::get<0>(r.value()), control_bytes_copied)));
+        return true;
+    }
+
+    auto cancel() noexcept -> void
+    {
+        result_.emplace(
+            result_error(std::make_error_code(std::errc::operation_canceled)));
+    }
+
+    static constexpr auto is_readable = std::false_type {};
+
+    template <typename F>
+    auto dispatch(F&& f) -> void
+    {
+        EXIOS_EXPECT(result_);
+        std::forward<F>(f)(std::move(*result_));
+    }
+
+private:
+    std::optional<ReceiveMessageManagedResult> result_;
+    incoming_message_base<Allocator> msg_;
 };
 
 struct NetSendTo
@@ -382,6 +552,18 @@ template <>
 struct IoOperation<SendMessageOperation>
 {
     using type = SendMessage;
+};
+
+template <typename Allocator>
+struct IoOperation<SendMessageManagedOperation<Allocator>>
+{
+    using type = SendMessageManaged<std::remove_cvref_t<Allocator>>;
+};
+
+template <typename Allocator>
+struct IoOperation<ReceiveMessageManagedOperation<Allocator>>
+{
+    using type = ReceiveMessageManaged<std::remove_cvref_t<Allocator>>;
 };
 
 template <>
