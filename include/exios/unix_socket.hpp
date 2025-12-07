@@ -2,12 +2,15 @@
 #define EXIOS_UNIX_SOCKET_HPP_INCLUDED
 
 #include "exios/alloc_utils.hpp"
+#include "exios/buffer_view.hpp"
 #include "exios/context.hpp"
 #include "exios/io.hpp"
 #include "exios/io_object.hpp"
+#include "exios/message.hpp"
 #include <string_view>
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <utility>
 
 namespace exios
 {
@@ -83,6 +86,49 @@ struct UnixSocket : IoObject
         schedule_io(op);
     }
 
+    /**
+     * \brief receive message with control data
+     * \param data_buffer The standard data to receive
+     * \param control_buffer The control data to receive
+     * \param completion A callable that accepts a
+     * ::exios::ReceiveMessageManagedResult
+     */
+    template <typename F>
+    auto receive_message(BufferView data_buffer,
+                         BufferView control_buffer,
+                         F&& completion) -> void
+    {
+        auto const alloc = select_allocator(completion);
+        incoming_message_base<std::remove_cvref_t<decltype(alloc)>> msg {
+            alloc, data_buffer
+        };
+        msg.set_control_buffer(control_buffer);
+
+        auto* op =
+            make_async_io_operation(receive_message_managed_operation<
+                                        std::remove_cvref_t<decltype(alloc)>>(),
+                                    wrap_work(std::move(completion), ctx_),
+                                    alloc,
+                                    ctx_,
+                                    fd_.value(),
+                                    std::move(msg));
+
+        schedule_io(op);
+    }
+
+    /**
+     * \brief receive message
+     * \param data_buffer The standard data to receive
+     * \param completion A callable that accepts a
+     * ::exios::ReceiveMessageManagedResult
+     */
+    template <typename F>
+    auto receive_message(BufferView data_buffer, F&& completion) -> void
+    {
+        receive_message(
+            data_buffer, BufferView {}, std::forward<F>(completion));
+    }
+
     template <typename F>
     auto write(ConstBufferView buffer, F&& completion) -> void
     {
@@ -113,6 +159,47 @@ struct UnixSocket : IoObject
                                     msg);
 
         schedule_io(op);
+    }
+
+    /**
+     * \brief send message with control data
+     * \param data_buffer The standard data to send
+     * \param control_buffer The control data to send
+     * \param completion A callable that accepts a ::exios::SendMessageResult
+     */
+    template <typename F>
+    auto send_message(ConstBufferView data_buffer,
+                      ConstBufferView control_buffer,
+                      F&& completion) -> void
+    {
+        auto const alloc = select_allocator(completion);
+        outgoing_message_base<std::remove_cvref_t<decltype(alloc)>> msg {
+            alloc, data_buffer
+        };
+        msg.set_control_buffer(control_buffer);
+
+        auto* op =
+            make_async_io_operation(send_message_managed_operation<
+                                        std::remove_cvref_t<decltype(alloc)>>(),
+                                    wrap_work(std::move(completion), ctx_),
+                                    alloc,
+                                    ctx_,
+                                    fd_.value(),
+                                    std::move(msg));
+
+        schedule_io(op);
+    }
+
+    /**
+     * \brief send message
+     * \param data_buffer The standard data to send
+     * \param completion A callable that accepts a ::exios::SendMessageResult
+     */
+    template <typename F>
+    auto send_message(ConstBufferView data_buffer, F&& completion) -> void
+    {
+        send_message(
+            data_buffer, ConstBufferView {}, std::forward<F>(completion));
     }
 
 private:

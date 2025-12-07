@@ -1,5 +1,7 @@
+#include "exios/buffer_view.hpp"
 #include "exios/context_thread.hpp"
 #include "exios/exios.hpp"
+#include "exios/message.hpp"
 #include "exios/unix_socket.hpp"
 #include "testing.hpp"
 #include <fcntl.h>
@@ -155,7 +157,8 @@ auto write_to_files_and_send(std::string_view content,
         {
         };
         exios::UnixSocket& socket;
-        msghdr message;
+        exios::ConstBufferView data_buffer;
+        exios::ConstBufferView control_buffer;
 
         auto initiate(std::string_view connect_to) && -> void
         {
@@ -170,12 +173,17 @@ auto write_to_files_and_send(std::string_view content,
             EXPECT(result);
 
             socket.send_message(
-                message,
+                data_buffer,
+                control_buffer,
                 std::bind(std::move(*this), OnSend {}, std::placeholders::_1));
         }
 
         auto operator()(OnSend, exios::IoResult result) -> void
         {
+            if (!result) {
+                std::cerr << "SenderPeer error: " << result.error().message()
+                          << '\n';
+            }
             EXPECT(result);
         }
     };
@@ -202,22 +210,17 @@ auto write_to_files_and_send(std::string_view content,
     EXPECT(n == len);
     ::fsync(fd);
 
-    msghdr msg {};
-    char cmsgbuf[CMSG_SPACE(sizeof(int))] = {};
-    msg.msg_control = cmsgbuf;
-    msg.msg_controllen = CMSG_SPACE(sizeof(int));
-
-    cmsghdr* cmsg = CMSG_FIRSTHDR(&msg);
-    cmsg->cmsg_level = SOL_SOCKET;
-    cmsg->cmsg_type = SCM_RIGHTS;
-    cmsg->cmsg_len = CMSG_LEN(sizeof(int));
-    *reinterpret_cast<int*>(CMSG_DATA(cmsg)) = fd;
     std::size_t num_fds = 1;
-    iovec data { &num_fds, sizeof(std::size_t) };
-    msg.msg_iov = &data;
-    msg.msg_iovlen = 1;
 
-    SenderPeer(socket, msg).initiate(socket_name);
+    auto sender = SenderPeer(
+        socket,
+        exios::ConstBufferView { .data =
+                                     reinterpret_cast<void const*>(&num_fds),
+                                 .size = sizeof(num_fds) },
+        exios::ConstBufferView { .data = reinterpret_cast<void const*>(&fd),
+                                 .size = sizeof(fd) });
+
+    std::move(sender).initiate(socket_name);
     static_cast<void>(thread.run());
 }
 
@@ -233,7 +236,9 @@ auto should_transfer_file_descriptors() -> void
         };
         exios::UnixSocketAcceptor& acceptor;
         exios::UnixSocket& socket;
-        msghdr& message;
+        exios::BufferView data_buffer;
+        exios::BufferView control_buffer;
+        std::pair<std::size_t, std::size_t>& sizes;
 
         auto initiate() && -> void
         {
@@ -246,15 +251,22 @@ auto should_transfer_file_descriptors() -> void
         auto operator()(OnAccept, exios::Result<std::error_code> result) -> void
         {
             EXPECT(result);
-            socket.receive_message(message,
+            socket.receive_message(data_buffer,
+                                   control_buffer,
                                    std::bind(std::move(*this),
                                              OnReceive {},
                                              std::placeholders::_1));
         }
 
-        auto operator()(OnReceive, exios::ReceiveMessageResult result) -> void
+        auto operator()(OnReceive, exios::ReceiveMessageManagedResult result)
+            -> void
         {
+            if (!result) {
+                std::cerr << "OnReceive error: " << result.error().message()
+                          << '\n';
+            }
             EXPECT(result);
+            sizes = result.value();
         }
     };
 
@@ -262,16 +274,16 @@ auto should_transfer_file_descriptors() -> void
     exios::UnixSocketAcceptor acceptor { thread, "test"sv };
     exios::UnixSocket socket { thread };
 
-    msghdr msg {};
-    std::size_t num_fds;
-    iovec data { &num_fds, sizeof(std::size_t) };
-    msg.msg_iov = &data;
-    msg.msg_iovlen = 1;
-    char cmsgbuf[CMSG_SPACE(sizeof(int))] {};
-    msg.msg_control = cmsgbuf;
-    msg.msg_controllen = sizeof(cmsgbuf);
+    std::array<std::size_t, 1> num_fds;
+    std::array<int, 1> fds;
+    auto sizes = std::make_pair(0ul, 0ul);
 
-    ReceiverPeer(acceptor, socket, msg).initiate();
+    ReceiverPeer(acceptor,
+                 socket,
+                 exios::buffer_view(num_fds),
+                 exios::buffer_view(fds),
+                 sizes)
+        .initiate();
 
     auto pid = ::fork();
     EXPECT(pid >= 0);
@@ -284,20 +296,19 @@ auto should_transfer_file_descriptors() -> void
     static_cast<void>(thread.run());
     ::waitpid(pid, nullptr, 0);
 
-    EXPECT(num_fds == 1);
-    EXPECT(msg.msg_controllen == CMSG_SPACE(sizeof(int)));
-    cmsghdr* cmsg = CMSG_FIRSTHDR(&msg);
-    EXPECT(cmsg);
-    EXPECT(cmsg->cmsg_len == CMSG_LEN(sizeof(int)));
-    int fd = *reinterpret_cast<int*>(CMSG_DATA(cmsg));
+    auto const& [data_bytes_received, control_bytes_received] = sizes;
 
-    EXIOS_SCOPE_GUARD([&] { ::close(fd); });
-    ::lseek(fd, 0, SEEK_SET);
+    EXPECT(data_bytes_received >= sizeof(num_fds[0]));
+    EXPECT(control_bytes_received >= sizeof(fds[0]));
+    EXPECT(num_fds[0] == 1);
+
+    EXIOS_SCOPE_GUARD([&] { ::close(fds[0]); });
+    ::lseek(fds[0], 0, SEEK_SET);
     std::string content;
 
     while (true) {
         char buffer[16] = {};
-        auto num_bytes = ::read(fd, &buffer, sizeof(buffer));
+        auto num_bytes = ::read(fds[0], &buffer, sizeof(buffer));
         EXPECT(num_bytes >= 0);
         std::copy_n(std::begin(buffer), num_bytes, std::back_inserter(content));
         if (!num_bytes)
